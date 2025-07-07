@@ -688,21 +688,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const results = [];
       const allPreOrders = await storage.getAllPreOrders();
+      
+      console.log(`Processing ${preOrderIds.length} pre-orders:`, preOrderIds);
+      console.log(`Total pre-orders in system: ${allPreOrders.length}`);
 
       for (const preOrderId of preOrderIds) {
         try {
           // Get pre-order details
           const preOrder = allPreOrders.find(po => po.id === preOrderId);
           
-          if (!preOrder || (preOrder.status !== "pending" && preOrder.status !== "approved")) {
-            results.push({ preOrderId, status: "failed", error: "Invalid pre-order" });
+          console.log(`Processing pre-order ${preOrderId}:`, preOrder ? `Status: ${preOrder.status}` : 'NOT FOUND');
+          
+          if (!preOrder) {
+            results.push({ preOrderId, status: "failed", error: "Pre-order not found" });
+            continue;
+          }
+          
+          if (preOrder.status !== "pending" && preOrder.status !== "approved") {
+            results.push({ preOrderId, status: "failed", error: `Invalid status: ${preOrder.status}` });
             continue;
           }
 
           if (!preOrder.stripeCustomerId || !preOrder.paymentMethodId) {
+            console.log(`Missing payment info for ${preOrderId}:`, {
+              hasStripeCustomerId: !!preOrder.stripeCustomerId,
+              hasPaymentMethodId: !!preOrder.paymentMethodId
+            });
             results.push({ preOrderId, status: "failed", error: "Missing payment information" });
             continue;
           }
+          
+          console.log(`Processing payment for ${preOrderId}:`, {
+            amount: Math.round(parseFloat(preOrder.totalPrice) * 100),
+            stripeCustomerId: preOrder.stripeCustomerId,
+            paymentMethodId: preOrder.paymentMethodId
+          });
 
           // Create payment intent with off_session
           const paymentIntent = await stripe.paymentIntents.create({
