@@ -100,18 +100,44 @@ export default function AdminPreOrderManagement() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'text-yellow-400 bg-yellow-400/20';
-      case 'approved': return 'text-blue-400 bg-blue-400/20';
-      case 'paid': return 'text-green-400 bg-green-400/20';
-      case 'failed': return 'text-red-400 bg-red-400/20';
-      case 'cancelled': return 'text-gray-400 bg-gray-400/20';
-      default: return 'text-gray-400 bg-gray-400/20';
+      case 'pending': return 'text-yellow-400 bg-yellow-400/20 border-yellow-400/30';
+      case 'approved': return 'text-blue-400 bg-blue-400/20 border-blue-400/30';
+      case 'processing': return 'text-purple-400 bg-purple-400/20 border-purple-400/30';
+      case 'paid': return 'text-green-400 bg-green-400/20 border-green-400/30';
+      case 'failed': return 'text-red-400 bg-red-400/20 border-red-400/30';
+      case 'cancelled': return 'text-gray-400 bg-gray-400/20 border-gray-400/30';
+      default: return 'text-gray-400 bg-gray-400/20 border-gray-400/30';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending': return <Clock className="w-4 h-4" />;
+      case 'approved': return <CheckCircle className="w-4 h-4" />;
+      case 'processing': return <CreditCard className="w-4 h-4" />;
+      case 'paid': return <CheckCircle className="w-4 h-4" />;
+      case 'failed': return <XCircle className="w-4 h-4" />;
+      case 'cancelled': return <XCircle className="w-4 h-4" />;
+      default: return <Clock className="w-4 h-4" />;
+    }
+  };
+
+  const getStatusDescription = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Awaiting admin approval';
+      case 'approved': return 'Ready for payment processing';
+      case 'processing': return 'Payment being processed by Stripe';
+      case 'paid': return 'Payment successful, ticket created';
+      case 'failed': return 'Payment failed, needs attention';
+      case 'cancelled': return 'Pre-order cancelled';
+      default: return 'Unknown status';
     }
   };
 
   const statusCounts = {
     pending: preOrders.filter((po: PreOrderWithEvent) => po.status === 'pending').length,
     approved: preOrders.filter((po: PreOrderWithEvent) => po.status === 'approved').length,
+    processing: preOrders.filter((po: PreOrderWithEvent) => po.status === 'processing').length,
     paid: preOrders.filter((po: PreOrderWithEvent) => po.status === 'paid').length,
     failed: preOrders.filter((po: PreOrderWithEvent) => po.status === 'failed').length,
     cancelled: preOrders.filter((po: PreOrderWithEvent) => po.status === 'cancelled').length,
@@ -142,23 +168,81 @@ export default function AdminPreOrderManagement() {
         </div>
       </div>
 
+      {/* Status Overview Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+        <div className="bg-gray-800/50 p-4 rounded-lg border border-yellow-400/20">
+          <div className="flex items-center gap-2 text-yellow-400">
+            <Clock className="w-4 h-4" />
+            <span className="text-sm font-medium">Pending</span>
+          </div>
+          <p className="text-2xl font-bold text-white mt-1">{statusCounts.pending}</p>
+          <p className="text-xs text-gray-400">Need approval</p>
+        </div>
+        
+        <div className="bg-gray-800/50 p-4 rounded-lg border border-blue-400/20">
+          <div className="flex items-center gap-2 text-blue-400">
+            <CheckCircle className="w-4 h-4" />
+            <span className="text-sm font-medium">Approved</span>
+          </div>
+          <p className="text-2xl font-bold text-white mt-1">{statusCounts.approved}</p>
+          <p className="text-xs text-gray-400">Ready for payment</p>
+        </div>
+        
+        <div className="bg-gray-800/50 p-4 rounded-lg border border-purple-400/20">
+          <div className="flex items-center gap-2 text-purple-400">
+            <CreditCard className="w-4 h-4" />
+            <span className="text-sm font-medium">Processing</span>
+          </div>
+          <p className="text-2xl font-bold text-white mt-1">{statusCounts.processing}</p>
+          <p className="text-xs text-gray-400">Payment in progress</p>
+        </div>
+        
+        <div className="bg-gray-800/50 p-4 rounded-lg border border-green-400/20">
+          <div className="flex items-center gap-2 text-green-400">
+            <CheckCircle className="w-4 h-4" />
+            <span className="text-sm font-medium">Paid</span>
+          </div>
+          <p className="text-2xl font-bold text-white mt-1">{statusCounts.paid}</p>
+          <p className="text-xs text-gray-400">Tickets created</p>
+        </div>
+        
+        <div className="bg-gray-800/50 p-4 rounded-lg border border-red-400/20">
+          <div className="flex items-center gap-2 text-red-400">
+            <XCircle className="w-4 h-4" />
+            <span className="text-sm font-medium">Failed</span>
+          </div>
+          <p className="text-2xl font-bold text-white mt-1">{statusCounts.failed}</p>
+          <p className="text-xs text-gray-400">Payment failed</p>
+        </div>
+        
+        <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-400/20">
+          <div className="flex items-center gap-2 text-gray-400">
+            <XCircle className="w-4 h-4" />
+            <span className="text-sm font-medium">Cancelled</span>
+          </div>
+          <p className="text-2xl font-bold text-white mt-1">{statusCounts.cancelled}</p>
+          <p className="text-xs text-gray-400">User cancelled</p>
+        </div>
+      </div>
+
       {/* Status Filter Tabs */}
       <div className="flex flex-wrap gap-2 bg-gray-800/50 p-4 rounded-lg">
         {[
-          { key: 'all', label: 'All', count: preOrders.length },
-          { key: 'pending', label: 'Pending', count: statusCounts.pending },
-          { key: 'approved', label: 'Approved', count: statusCounts.approved },
-          { key: 'paid', label: 'Paid', count: statusCounts.paid },
-          { key: 'failed', label: 'Failed', count: statusCounts.failed },
-          { key: 'cancelled', label: 'Cancelled', count: statusCounts.cancelled },
-        ].map(({ key, label, count }) => (
+          { key: 'all', label: 'All', count: preOrders.length, color: 'text-gray-300' },
+          { key: 'pending', label: 'Pending', count: statusCounts.pending, color: 'text-yellow-400' },
+          { key: 'approved', label: 'Approved', count: statusCounts.approved, color: 'text-blue-400' },
+          { key: 'processing', label: 'Processing', count: statusCounts.processing, color: 'text-purple-400' },
+          { key: 'paid', label: 'Paid', count: statusCounts.paid, color: 'text-green-400' },
+          { key: 'failed', label: 'Failed', count: statusCounts.failed, color: 'text-red-400' },
+          { key: 'cancelled', label: 'Cancelled', count: statusCounts.cancelled, color: 'text-gray-400' },
+        ].map(({ key, label, count, color }) => (
           <button
             key={key}
             onClick={() => setStatusFilter(key)}
             className={`px-4 py-2 rounded-lg font-medium transition-all ${
               statusFilter === key
                 ? 'bg-purple-500 text-white'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                : `bg-gray-700 hover:bg-gray-600 ${color || 'text-gray-300'}`
             }`}
           >
             {label} ({count})
@@ -217,7 +301,8 @@ export default function AdminPreOrderManagement() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(preOrder.status)}`}>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(preOrder.status)} flex items-center gap-1`}>
+                      {getStatusIcon(preOrder.status)}
                       {preOrder.status.charAt(0).toUpperCase() + preOrder.status.slice(1)}
                     </span>
                   </div>
@@ -240,35 +325,91 @@ export default function AdminPreOrderManagement() {
                   </div>
                   
                   <div>
-                    <p className="text-gray-400">Payment Details</p>
+                    <p className="text-gray-400">Payment & Status</p>
                     <p className="text-white font-medium">£{preOrder.totalPrice}</p>
+                    <p className="text-xs text-gray-400 mt-1">{getStatusDescription(preOrder.status)}</p>
                     {preOrder.stripeCustomerId && (
-                      <div className="flex items-center gap-1 text-gray-300">
+                      <div className="flex items-center gap-1 text-gray-300 text-xs mt-1">
                         <CreditCard className="w-3 h-3" />
                         <span>Payment method saved</span>
+                      </div>
+                    )}
+                    {preOrder.stripePaymentIntentId && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        Payment ID: {preOrder.stripePaymentIntentId.slice(-8)}
                       </div>
                     )}
                   </div>
                 </div>
 
-                {preOrder.status === 'pending' && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => approveMutation.mutate(preOrder.id)}
-                      disabled={approveMutation.isPending}
-                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                    >
-                      Approve
-                    </button>
+                {/* Action buttons based on status */}
+                <div className="flex gap-2 flex-wrap">
+                  {preOrder.status === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => approveMutation.mutate(preOrder.id)}
+                        disabled={approveMutation.isPending}
+                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => fulfillMutation.mutate([preOrder.id])}
+                        disabled={fulfillMutation.isPending}
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        Approve & Charge
+                      </button>
+                    </>
+                  )}
+                  
+                  {preOrder.status === 'approved' && (
                     <button
                       onClick={() => fulfillMutation.mutate([preOrder.id])}
                       disabled={fulfillMutation.isPending}
-                      className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
                     >
-                      Approve & Charge Now
+                      <CreditCard className="w-4 h-4" />
+                      Process Payment
                     </button>
-                  </div>
-                )}
+                  )}
+                  
+                  {preOrder.status === 'processing' && (
+                    <div className="bg-purple-600/20 text-purple-300 px-3 py-2 rounded-lg text-sm flex items-center gap-1">
+                      <div className="animate-spin w-4 h-4 border-2 border-purple-300 border-t-transparent rounded-full"></div>
+                      Processing Payment...
+                    </div>
+                  )}
+                  
+                  {preOrder.status === 'failed' && (
+                    <>
+                      <button
+                        onClick={() => fulfillMutation.mutate([preOrder.id])}
+                        disabled={fulfillMutation.isPending}
+                        className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        Retry Payment
+                      </button>
+                    </>
+                  )}
+                  
+                  {preOrder.status === 'paid' && (
+                    <div className="bg-green-600/20 text-green-300 px-3 py-2 rounded-lg text-sm flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4" />
+                      Ticket Created
+                    </div>
+                  )}
+                  
+                  {preOrder.status === 'cancelled' && (
+                    <div className="bg-gray-600/20 text-gray-400 px-3 py-2 rounded-lg text-sm flex items-center gap-1">
+                      <XCircle className="w-4 h-4" />
+                      Cancelled
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
