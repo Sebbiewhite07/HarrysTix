@@ -221,83 +221,82 @@ const Home: React.FC = () => {
                       </div>
                       <div className="flex items-center space-x-2 bg-purple-500/20 px-4 py-2 rounded-full">
                         <Package className="w-4 h-4 text-purple-400" />
-                        <span className="text-sm font-medium text-purple-400">1 pre-order per week</span>
+                        <span className="text-sm font-medium text-purple-400">Multiple pre-orders available</span>
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-cyan-400">This Week's Event</h3>
-                        <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                          {preOrderEvents[0] && (
-                            <div>
-                              <h4 className="font-semibold text-white mb-2">{preOrderEvents[0].title}</h4>
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-cyan-400">Available Pre-Orders</h3>
+                        <div className="text-sm text-gray-400">{preOrderEvents.length} event(s) available</div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {preOrderEvents.map((event) => (
+                          <div key={event.id} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700 hover:border-purple-500/50 transition-all">
+                            <div className="space-y-3">
+                              <h4 className="font-semibold text-white">{event.title}</h4>
                               <div className="space-y-2 text-sm text-gray-300">
                                 <div className="flex items-center gap-2">
                                   <MapPin className="w-4 h-4 text-purple-400" />
-                                  <span>{preOrderEvents[0].venue}</span>
+                                  <span>{event.venue}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Calendar className="w-4 h-4 text-purple-400" />
-                                  <span>{new Date(preOrderEvents[0].date).toLocaleDateString()}</span>
+                                  <span>{new Date(event.date).toLocaleDateString()}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Star className="w-4 h-4 text-cyan-400" />
-                                  <span>Member Price: £{preOrderEvents[0].memberPrice}</span>
+                                  <span>Member Price: £{event.memberPrice}</span>
                                 </div>
                               </div>
-                              {activeWeeklyPreOrder ? (
-                                <div className="w-full mt-4 bg-purple-900/30 border border-purple-500/50 rounded-lg p-3">
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <p className="text-sm font-medium text-purple-400">Pre-Order Active</p>
-                                      <p className="text-xs text-gray-400">
-                                        Status: <span className="capitalize text-purple-300">{activeWeeklyPreOrder.status}</span>
-                                      </p>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-sm font-medium text-white">{activeWeeklyPreOrder.quantity} ticket(s)</p>
-                                      <p className="text-xs text-gray-400">£{activeWeeklyPreOrder.totalPrice}</p>
-                                    </div>
+                              
+                              {/* Check if user has pre-order for this specific event */}
+                              {userPreOrders?.find(po => po.eventId === event.id) ? (
+                                <div className="w-full bg-purple-900/30 border border-purple-500/50 rounded-lg p-3">
+                                  <div className="text-center">
+                                    <p className="text-sm font-medium text-purple-400">Pre-Ordered</p>
+                                    <p className="text-xs text-gray-400">
+                                      {userPreOrders.find(po => po.eventId === event.id)?.quantity} ticket(s)
+                                    </p>
                                   </div>
                                 </div>
                               ) : (
                                 <button
-                                  onClick={() => handlePreOrder(preOrderEvents[0])}
-                                  className="w-full mt-4 bg-gradient-to-r from-purple-500 to-cyan-500 text-white py-3 px-4 rounded-lg font-medium hover:from-purple-600 hover:to-cyan-600 transition-all"
+                                  onClick={() => handlePreOrder(event)}
+                                  className="w-full bg-gradient-to-r from-purple-500 to-cyan-500 text-white py-2 px-4 rounded-lg font-medium hover:from-purple-600 hover:to-cyan-600 transition-all text-sm"
                                 >
                                   Place Pre-Order
                                 </button>
                               )}
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        ))}
                       </div>
                       
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-cyan-400">Benefits</h3>
-                        <div className="space-y-3">
-                          <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 bg-purple-400 rounded-full mt-2"></div>
-                            <div>
-                              <p className="text-white font-medium">Priority Access</p>
-                              <p className="text-gray-400 text-sm">Get tickets before public sale opens</p>
-                            </div>
+                      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30 rounded-lg p-4 text-center">
+                          <div className="w-8 h-8 bg-purple-500 rounded-full mx-auto mb-3 flex items-center justify-center">
+                            <Clock className="w-4 h-4 text-white" />
                           </div>
-                          <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 bg-cyan-400 rounded-full mt-2"></div>
-                            <div>
-                              <p className="text-white font-medium">Member Pricing</p>
-                              <p className="text-gray-400 text-sm">Exclusive discounted rates for all events</p>
-                            </div>
+                          <p className="text-white font-medium text-sm">Priority Access</p>
+                          <p className="text-gray-400 text-xs mt-1">Get tickets before public sale</p>
+                        </div>
+                        
+                        <div className="bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 border border-cyan-500/30 rounded-lg p-4 text-center">
+                          <div className="w-8 h-8 bg-cyan-500 rounded-full mx-auto mb-3 flex items-center justify-center">
+                            <Star className="w-4 h-4 text-white" />
                           </div>
-                          <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 bg-purple-400 rounded-full mt-2"></div>
-                            <div>
-                              <p className="text-white font-medium">Guaranteed Tickets</p>
-                              <p className="text-gray-400 text-sm">Reserve your spot even for sold-out events</p>
-                            </div>
+                          <p className="text-white font-medium text-sm">Member Pricing</p>
+                          <p className="text-gray-400 text-xs mt-1">Exclusive discounted rates</p>
+                        </div>
+                        
+                        <div className="bg-gradient-to-br from-purple-500/20 to-cyan-500/20 border border-purple-500/30 rounded-lg p-4 text-center">
+                          <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full mx-auto mb-3 flex items-center justify-center">
+                            <Crown className="w-4 h-4 text-white" />
                           </div>
+                          <p className="text-white font-medium text-sm">Guaranteed Tickets</p>
+                          <p className="text-gray-400 text-xs mt-1">Reserve your spot</p>
                         </div>
                       </div>
                     </div>

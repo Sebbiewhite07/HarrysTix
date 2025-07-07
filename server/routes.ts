@@ -490,10 +490,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Only Harry's Club members can place pre-orders" });
       }
 
-      // Check if user already has a pre-order this week
-      const existingPreOrder = await storage.getUserWeeklyPreOrder(req.user.id);
-      if (existingPreOrder) {
-        return res.status(400).json({ error: "You already have a pre-order for this week" });
+      // Check if user already has a pre-order for this specific event
+      const existingEventPreOrder = await storage.getPreOrdersByUserId(req.user.id);
+      const hasPreOrderForEvent = existingEventPreOrder.some(po => po.eventId === eventId);
+      if (hasPreOrderForEvent) {
+        return res.status(400).json({ error: "You already have a pre-order for this event" });
       }
 
       const { eventId, quantity } = req.body;
