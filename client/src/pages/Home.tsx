@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Star, Crown, Zap, ArrowRight, Users, Calendar, MapPin, Package } from 'lucide-react';
+import { Star, Crown, Zap, ArrowRight, Users, Calendar, MapPin, Package, Clock } from 'lucide-react';
 import { Link } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { useEvents } from '../hooks/useEvents';

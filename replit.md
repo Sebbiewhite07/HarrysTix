@@ -96,6 +96,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **Multiple Pre-Order System Implemented** (July 07, 2025): Enhanced pre-order functionality for maximum flexibility:
+  - Removed weekly pre-order restriction - users can now pre-order from multiple events
+  - Harry's Club section displays ALL available pre-order events in grid format
+  - Backend logic updated to allow one pre-order per event (instead of one per week)
+  - Individual pre-order status tracking for each event
+  - Improved UI with event-specific pre-order buttons and status indicators
+
 - **Event Status System Simplified** (July 07, 2025): Replaced complex drop time scheduling with simple status system:
   - Add Event modal now uses Draft/Live status selector instead of drop time field
   - Simplified event management - no more complex scheduling requirements
