@@ -216,7 +216,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updatePreOrderStatus(id: string, status: string, additionalFields?: Partial<PreOrder>): Promise<PreOrder | undefined> {
-    const updateData = { status, updatedAt: new Date(), ...additionalFields };
+    const updateData: any = { status, updatedAt: new Date(), ...additionalFields };
+    
+    // Handle timestamp fields properly
+    if (status === 'approved' && !updateData.approvedAt) {
+      updateData.approvedAt = new Date();
+    }
+    if (status === 'paid' && !updateData.paidAt) {
+      updateData.paidAt = new Date();
+    }
+    if (status === 'failed' && !updateData.failedAt) {
+      updateData.failedAt = new Date();
+    }
+    if (status === 'cancelled' && !updateData.cancelledAt) {
+      updateData.cancelledAt = new Date();
+    }
+
     const result = await db.update(preOrders)
       .set(updateData)
       .where(eq(preOrders.id, id))

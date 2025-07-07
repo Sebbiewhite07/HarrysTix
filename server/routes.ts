@@ -608,7 +608,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { status, ...additionalFields } = req.body;
 
-      const updatedPreOrder = await storage.updatePreOrderStatus(id, status, additionalFields);
+      // Clean up additionalFields to only include valid database fields
+      const cleanAdditionalFields: any = {};
+      const validFields = ['paymentMethodId', 'stripeCustomerId', 'stripePaymentIntentId'];
+      
+      Object.keys(additionalFields).forEach(key => {
+        if (validFields.includes(key)) {
+          cleanAdditionalFields[key] = additionalFields[key];
+        }
+      });
+
+      const updatedPreOrder = await storage.updatePreOrderStatus(id, status, cleanAdditionalFields);
       
       if (!updatedPreOrder) {
         return res.status(404).json({ error: "Pre-order not found" });
