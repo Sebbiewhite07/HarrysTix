@@ -56,14 +56,14 @@ const Home: React.FC = () => {
 
   // Fetch user's pre-orders if they're a member
   const { data: userPreOrders = [] } = useQuery({
-    queryKey: ['/api/pre-orders'],
+    queryKey: ['/api/pre-orders', user?.id],
     enabled: !!user,
     retry: false,
   });
 
   // Fetch user's weekly pre-order if they're a member
   const { data: weeklyPreOrder } = useQuery({
-    queryKey: ['/api/pre-orders/weekly'],
+    queryKey: ['/api/pre-orders/weekly', user?.id],
     enabled: !!user?.isMember,
     retry: false,
   });
