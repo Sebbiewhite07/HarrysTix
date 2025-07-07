@@ -4,6 +4,10 @@ import { QueryClient } from '@tanstack/react-query';
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      queryFn: async ({ queryKey }) => {
+        const url = queryKey[0] as string;
+        return apiRequest('GET', url);
+      },
       refetchOnWindowFocus: false,
       retry: false,
       staleTime: 5 * 60 * 1000, // 5 minutes

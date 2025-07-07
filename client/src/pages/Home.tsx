@@ -292,7 +292,7 @@ const Home: React.FC = () => {
               )}
 
               {/* User's Pre-Orders */}
-              {user && userPreOrders.length > 0 && (
+              {user && userPreOrders && userPreOrders.length > 0 && (
                 <div className="mb-16 animate-slideIn">
                   <div className="flex items-center space-x-3 mb-8">
                     <div className="w-3 h-3 bg-purple-500 rounded-full pulse"></div>
