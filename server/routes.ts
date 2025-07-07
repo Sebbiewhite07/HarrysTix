@@ -514,11 +514,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { eventId, quantity, paymentMethodId } = req.body;
       
       // Check if user already has a pre-order for this week (Monday to Sunday)
-      const existingUserPreOrders = await storage.getPreOrdersByUserId(req.user.id);
+      // Only consider active pre-orders (not cancelled, failed, or paid)
       const weeklyPreOrder = await storage.getUserWeeklyPreOrder(req.user.id);
       
-      if (weeklyPreOrder && weeklyPreOrder.status !== 'cancelled') {
-        return res.status(400).json({ error: "You already have a pre-order for this week. Members can only pre-order 1 event per week." });
+      if (weeklyPreOrder && !['cancelled', 'failed', 'paid'].includes(weeklyPreOrder.status)) {
+        return res.status(400).json({ 
+          error: "You already have a pre-order for this week. Members can only pre-order 1 event per week.",
+          existingPreOrder: {
+            eventId: weeklyPreOrder.eventId,
+            status: weeklyPreOrder.status,
+            createdAt: weeklyPreOrder.createdAt
+          }
+        });
       }
       
       if (!eventId || !quantity || quantity <= 0 || !paymentMethodId) {
