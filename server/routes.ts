@@ -297,6 +297,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Upload tickets for an event (Admin only)
+  app.post('/api/events/:id/tickets/upload', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id: eventId } = req.params;
+      const { tickets } = req.body; // Array of email:password strings
+      
+      if (!Array.isArray(tickets)) {
+        return res.status(400).json({ error: 'Tickets must be an array' });
+      }
+
+      // Validate event exists
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ error: 'Event not found' });
+      }
+
+      // Parse and validate tickets format (email:password)
+      const parsedTickets = [];
+      for (const ticket of tickets) {
+        if (typeof ticket !== 'string' || !ticket.includes(':')) {
+          return res.status(400).json({ error: 'Invalid ticket format. Expected email:password' });
+        }
+        
+        const [email, password] = ticket.split(':');
+        if (!email || !password) {
+          return res.status(400).json({ error: 'Invalid ticket format. Email and password required' });
+        }
+        
+        parsedTickets.push({ email: email.trim(), password: password.trim() });
+      }
+
+      // Create tickets in database
+      const createdTickets = [];
+      for (const ticketData of parsedTickets) {
+        const ticket = await storage.createTicket({
+          id: crypto.randomUUID(),
+          eventId,
+          userId: `ticket-${ticketData.email}`, // Special user ID for uploaded tickets
+          quantity: 1,
+          totalPrice: 0, // Admin uploaded tickets are free
+          confirmationCode: `HTX-${event.title.substring(0, 3).toUpperCase()}-${Date.now()}`,
+          status: 'confirmed',
+          ticketCredentials: `${ticketData.email}:${ticketData.password}` // Store credentials
+        });
+        createdTickets.push(ticket);
+      }
+
+      res.json({
+        message: `Successfully uploaded ${createdTickets.length} tickets`,
+        tickets: createdTickets
+      });
+    } catch (error) {
+      console.error('Upload tickets error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Get all tickets for an event (Admin only)
+  app.get('/api/events/:id/tickets', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id: eventId } = req.params;
+      
+      const tickets = await storage.getTicketsByEventId(eventId);
+      res.json(tickets);
+    } catch (error) {
+      console.error('Get event tickets error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Ticket routes
   app.get('/api/tickets', requireAuth, async (req, res) => {
     try {

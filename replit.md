@@ -94,7 +94,28 @@ The application follows a full-stack monorepo architecture with clear separation
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+- **Admin Dashboard Enhanced** (July 07, 2025): Added complete admin functionality including:
+  - Add Event modal with comprehensive event creation form
+  - Upload Tickets modal supporting email:password format
+  - Real-time event management with live data from PostgreSQL
+  - Backend API endpoints for event creation and ticket upload
+  - Database schema updated to support ticket credentials field
+
+- **Ticket Purchase System** (July 07, 2025): Implemented complete ticketing flow:
+  - Ticket purchase modal with quantity selection and member pricing
+  - Real-time availability checking and purchase processing
+  - User authentication checks and session management
+  - Dashboard integration showing user's purchased tickets
+
+- **Database Migration** (July 07, 2025): Successfully migrated from Supabase to PostgreSQL:
+  - Removed all Supabase dependencies
+  - Implemented Drizzle ORM with proper schema definitions
+  - Session-based authentication replacing Supabase auth
+  - All data now stored securely in PostgreSQL database
+
 ## Changelog
 
-Changelog:
-- July 07, 2025. Initial setup
+- July 07, 2025: Project migration to Replit with PostgreSQL integration
+- July 07, 2025: Admin panel and ticket upload functionality implemented

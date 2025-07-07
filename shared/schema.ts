@@ -47,6 +47,7 @@ export const tickets = pgTable("tickets", {
   purchaseDate: timestamp("purchase_date").defaultNow(),
   confirmationCode: text("confirmation_code").notNull(),
   status: text("status").notNull().default("confirmed"), // 'confirmed' | 'cancelled' | 'refunded'
+  ticketCredentials: text("ticket_credentials"), // For admin uploaded tickets in email:password format
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Users, Calendar, Settings, BarChart3, Crown, Mail, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Users, Calendar, Settings, BarChart3, Crown, Mail, Edit, Trash2, Eye, Upload } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { Event } from '../types';
+import AddEventModal from '../components/AddEventModal';
+import UploadTicketsModal from '../components/UploadTicketsModal';
 
 const Admin: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -10,6 +12,9 @@ const Admin: React.FC = () => {
   const [activeTab, setActiveTab] = useState('events');
   const [events, setEvents] = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
+  const [showAddEventModal, setShowAddEventModal] = useState(false);
+  const [showUploadTicketsModal, setShowUploadTicketsModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   useEffect(() => {
     if (!isLoading && (!user || !user.isAdmin)) {
@@ -47,6 +52,32 @@ const Admin: React.FC = () => {
       fetchEvents();
     }
   }, [user]);
+
+  const refreshEvents = async () => {
+    try {
+      const response = await fetch('/api/events', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const eventsData = await response.json();
+        const processedEvents = eventsData.map((event: any) => ({
+          ...event,
+          date: new Date(event.date),
+          dropTime: new Date(event.dropTime),
+          publicPrice: parseFloat(event.publicPrice),
+          memberPrice: parseFloat(event.memberPrice),
+        }));
+        setEvents(processedEvents);
+      }
+    } catch (error) {
+      console.error('Failed to refresh events:', error);
+    }
+  };
+
+  const handleUploadTickets = (event: Event) => {
+    setSelectedEvent(event);
+    setShowUploadTicketsModal(true);
+  };
 
   if (isLoading) {
     return (
@@ -181,7 +212,10 @@ const Admin: React.FC = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-white">Events Management</h2>
-                <button className="bg-gradient-to-r from-purple-500 to-cyan-500 text-white px-4 py-2 rounded-lg font-medium hover:from-purple-600 hover:to-cyan-600 transition-all duration-200 shadow-lg hover:shadow-purple-500/25 flex items-center space-x-2">
+                <button 
+                  onClick={() => setShowAddEventModal(true)}
+                  className="bg-gradient-to-r from-purple-500 to-cyan-500 text-white px-4 py-2 rounded-lg font-medium hover:from-purple-600 hover:to-cyan-600 transition-all duration-200 shadow-lg hover:shadow-purple-500/25 flex items-center space-x-2"
+                >
                   <Plus className="w-5 h-5" />
                   <span>Add Event</span>
                 </button>
@@ -200,48 +234,76 @@ const Admin: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-800">
-                      {mockEvents.map((event) => (
-                        <tr key={event.id} className="hover:bg-gray-800/30">
-                          <td className="px-6 py-4">
-                            <div>
-                              <div className="text-white font-medium">{event.title}</div>
-                              <div className="text-gray-400 text-sm">{event.venue}</div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-white">{event.date}</div>
-                            <div className="text-gray-400 text-sm">{event.time}</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-white">{event.soldTickets}/{event.maxTickets}</div>
-                            <div className="text-gray-400 text-sm">
-                              {Math.round((event.soldTickets / event.maxTickets) * 100)}% sold
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                              event.status === 'live' 
-                                ? 'bg-green-500/20 text-green-400' 
-                                : 'bg-orange-500/20 text-orange-400'
-                            }`}>
-                              {event.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center space-x-2">
-                              <button className="text-blue-400 hover:text-blue-300 transition-colors">
-                                <Eye className="w-5 h-5" />
-                              </button>
-                              <button className="text-purple-400 hover:text-purple-300 transition-colors">
-                                <Edit className="w-5 h-5" />
-                              </button>
-                              <button className="text-red-400 hover:text-red-300 transition-colors">
-                                <Trash2 className="w-5 h-5" />
-                              </button>
-                            </div>
+                      {eventsLoading ? (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-8 text-center">
+                            <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                            <p className="text-gray-400">Loading events...</p>
                           </td>
                         </tr>
-                      ))}
+                      ) : events.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-8 text-center">
+                            <p className="text-gray-400 mb-4">No events found</p>
+                            <button 
+                              onClick={() => setShowAddEventModal(true)}
+                              className="text-purple-400 hover:text-purple-300 transition-colors"
+                            >
+                              Create your first event
+                            </button>
+                          </td>
+                        </tr>
+                      ) : (
+                        events.map((event) => (
+                          <tr key={event.id} className="hover:bg-gray-800/30">
+                            <td className="px-6 py-4">
+                              <div>
+                                <div className="text-white font-medium">{event.title}</div>
+                                <div className="text-gray-400 text-sm">{event.venue}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-white">{event.date.toLocaleDateString()}</div>
+                              <div className="text-gray-400 text-sm">{event.time}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-white">{event.soldTickets}/{event.maxTickets}</div>
+                              <div className="text-gray-400 text-sm">
+                                {Math.round((event.soldTickets / event.maxTickets) * 100)}% sold
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                event.isLive 
+                                  ? 'bg-green-500/20 text-green-400' 
+                                  : 'bg-orange-500/20 text-orange-400'
+                              }`}>
+                                {event.isLive ? 'live' : 'upcoming'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center space-x-2">
+                                <button 
+                                  onClick={() => handleUploadTickets(event)}
+                                  className="text-cyan-400 hover:text-cyan-300 transition-colors"
+                                  title="Upload Tickets"
+                                >
+                                  <Upload className="w-5 h-5" />
+                                </button>
+                                <button className="text-blue-400 hover:text-blue-300 transition-colors">
+                                  <Eye className="w-5 h-5" />
+                                </button>
+                                <button className="text-purple-400 hover:text-purple-300 transition-colors">
+                                  <Edit className="w-5 h-5" />
+                                </button>
+                                <button className="text-red-400 hover:text-red-300 transition-colors">
+                                  <Trash2 className="w-5 h-5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -506,6 +568,20 @@ const Admin: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Modals */}
+      <AddEventModal
+        isOpen={showAddEventModal}
+        onClose={() => setShowAddEventModal(false)}
+        onEventAdded={refreshEvents}
+      />
+      
+      <UploadTicketsModal
+        event={selectedEvent}
+        isOpen={showUploadTicketsModal}
+        onClose={() => setShowUploadTicketsModal(false)}
+        onTicketsUploaded={refreshEvents}
+      />
     </div>
   );
 };

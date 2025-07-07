@@ -287,6 +287,7 @@ export class MemStorage implements IStorage {
       ...ticket,
       purchaseDate: new Date(),
       status: "confirmed",
+      ticketCredentials: (ticket as any).ticketCredentials || null,
       createdAt: new Date(),
     };
     this.tickets.set(ticket.id, newTicket);
