@@ -120,12 +120,7 @@ const TicketPurchaseModal: React.FC<TicketPurchaseModalProps> = ({
             </div>
           </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-3">
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
-          )}
+
 
           {/* Purchase Button */}
           <button
