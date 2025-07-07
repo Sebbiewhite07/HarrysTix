@@ -29,7 +29,7 @@ export const events = pgTable("events", {
   soldTickets: integer("sold_tickets").default(0),
   maxPerUser: integer("max_per_user").default(4),
   memberMaxPerUser: integer("member_max_per_user").default(2),
-  dropTime: timestamp("drop_time").notNull(),
+  dropTime: timestamp("drop_time").defaultNow(), // Legacy field, not used anymore
   isLive: boolean("is_live").default(false),
   imageUrl: text("image_url"),
   description: text("description"),
@@ -92,13 +92,12 @@ export const insertEventSchema = createInsertSchema(events).pick({
   soldTickets: true,
   maxPerUser: true,
   memberMaxPerUser: true,
-  dropTime: true,
+
   isLive: true,
   imageUrl: true,
   description: true,
 }).extend({
   date: z.string().transform((val) => new Date(val)),
-  dropTime: z.string().transform((val) => new Date(val)),
   publicPrice: z.number().transform((val) => val.toString()),
   memberPrice: z.number().transform((val) => val.toString()),
 });

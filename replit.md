@@ -96,6 +96,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **Event Status System Simplified** (July 07, 2025): Replaced complex drop time scheduling with simple status system:
+  - Add Event modal now uses Draft/Live status selector instead of drop time field
+  - Simplified event management - no more complex scheduling requirements
+  - Database schema updated to make dropTime field optional (legacy support)
+  - Backend API updated to handle status-based event creation
+  - Admin workflow streamlined for easier event management
+
 - **Admin Dashboard Enhanced** (July 07, 2025): Added complete admin functionality including:
   - Add Event modal with comprehensive event creation form
   - Upload Tickets modal supporting email:password format

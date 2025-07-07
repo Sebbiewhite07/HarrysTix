@@ -294,8 +294,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         soldTickets: req.body.soldTickets || 0,
         maxPerUser: req.body.maxPerUser,
         memberMaxPerUser: req.body.memberMaxPerUser,
-        dropTime: new Date(req.body.dropTime),
-        isLive: req.body.isLive,
+        // dropTime field is now auto-generated with defaultNow()
+        isLive: req.body.isLive, // Now determined by status field from frontend
         imageUrl: req.body.imageUrl || null,
         description: req.body.description || null,
       };

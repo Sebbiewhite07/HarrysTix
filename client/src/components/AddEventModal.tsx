@@ -18,7 +18,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onEventA
     maxTickets: '',
     maxPerUser: '',
     memberMaxPerUser: '',
-    dropTime: '',
+    status: 'draft',
     imageUrl: '',
     description: ''
   });
@@ -33,7 +33,6 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onEventA
     try {
       // Combine date and time
       const eventDateTime = new Date(`${formData.date}T${formData.time}`);
-      const dropDateTime = new Date(formData.dropTime);
 
       const response = await fetch('/api/events', {
         method: 'POST',
@@ -52,8 +51,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onEventA
           soldTickets: 0,
           maxPerUser: parseInt(formData.maxPerUser),
           memberMaxPerUser: parseInt(formData.memberMaxPerUser),
-          dropTime: dropDateTime.toISOString(),
-          isLive: dropDateTime <= new Date(),
+          isLive: formData.status === 'live',
           imageUrl: formData.imageUrl || null,
           description: formData.description || null,
         }),
@@ -76,7 +74,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onEventA
         maxTickets: '',
         maxPerUser: '',
         memberMaxPerUser: '',
-        dropTime: '',
+        status: 'draft',
         imageUrl: '',
         description: ''
       });
@@ -250,20 +248,22 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onEventA
             </div>
           </div>
 
-          {/* Drop Time */}
+          {/* Event Status */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Ticket Drop Time *
+              Event Status *
             </label>
-            <input
-              type="datetime-local"
+            <select
               required
-              value={formData.dropTime}
-              onChange={(e) => setFormData({ ...formData, dropTime: e.target.value })}
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
               className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
+            >
+              <option value="draft">Draft</option>
+              <option value="live">Live</option>
+            </select>
             <p className="text-sm text-gray-500 mt-1">
-              When tickets become available for purchase
+              Draft events are hidden from users, Live events are available for purchase
             </p>
           </div>
 

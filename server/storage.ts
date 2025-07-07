@@ -251,6 +251,7 @@ export class MemStorage implements IStorage {
       isLive: event.isLive ?? false,
       maxPerUser: event.maxPerUser ?? 4,
       memberMaxPerUser: event.memberMaxPerUser ?? 2,
+      dropTime: new Date(), // Legacy field, auto-generated
       imageUrl: event.imageUrl ?? null,
       description: event.description ?? null,
       createdAt: new Date(),
