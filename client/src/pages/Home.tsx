@@ -46,6 +46,13 @@ const Home: React.FC = () => {
     window.location.reload();
   };
 
+  // Fetch user's pre-orders if they're a member
+  const { data: userPreOrders = [] } = useQuery({
+    queryKey: ['/api/pre-orders'],
+    enabled: !!user,
+    retry: false,
+  });
+
   // Fetch user's weekly pre-order if they're a member
   const { data: weeklyPreOrder } = useQuery({
     queryKey: ['/api/pre-orders/weekly'],
@@ -53,12 +60,20 @@ const Home: React.FC = () => {
     retry: false,
   });
 
-  // Fetch user's pre-orders if they're a member
-  const { data: userPreOrders = [] } = useQuery({
-    queryKey: ['/api/pre-orders'],
-    enabled: !!user,
-    retry: false,
+  // Find the current week's pre-order from userPreOrders as fallback
+  const currentWeekPreOrder = userPreOrders.find((preOrder: any) => {
+    const preOrderDate = new Date(preOrder.createdAt);
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    
+    return preOrderDate >= weekStart && preOrderDate < weekEnd;
   });
+
+  const activeWeeklyPreOrder = weeklyPreOrder || currentWeekPreOrder;
 
   const liveEvents = events.filter(event => event.isLive && new Date() >= event.dropTime);
   const upcomingEvents = events.filter(event => !event.isLive || new Date() < event.dropTime);
@@ -217,18 +232,18 @@ const Home: React.FC = () => {
                                   <span>Member Price: £{upcomingEvents[0].memberPrice}</span>
                                 </div>
                               </div>
-                              {weeklyPreOrder ? (
+                              {activeWeeklyPreOrder ? (
                                 <div className="w-full mt-4 bg-purple-900/30 border border-purple-500/50 rounded-lg p-3">
                                   <div className="flex items-center justify-between">
                                     <div>
                                       <p className="text-sm font-medium text-purple-400">Pre-Order Active</p>
                                       <p className="text-xs text-gray-400">
-                                        Status: <span className="capitalize text-purple-300">{weeklyPreOrder.status}</span>
+                                        Status: <span className="capitalize text-purple-300">{activeWeeklyPreOrder.status}</span>
                                       </p>
                                     </div>
                                     <div className="text-right">
-                                      <p className="text-sm font-medium text-white">{weeklyPreOrder.quantity} ticket(s)</p>
-                                      <p className="text-xs text-gray-400">£{weeklyPreOrder.totalPrice}</p>
+                                      <p className="text-sm font-medium text-white">{activeWeeklyPreOrder.quantity} ticket(s)</p>
+                                      <p className="text-xs text-gray-400">£{activeWeeklyPreOrder.totalPrice}</p>
                                     </div>
                                   </div>
                                 </div>
