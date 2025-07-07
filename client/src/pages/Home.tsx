@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useEvents } from '../hooks/useEvents';
 import EventCard from '../components/EventCard';
 import TicketPurchaseModal from '../components/TicketPurchaseModal';
-import PreOrderModal from '../components/PreOrderModal';
+import PreOrderPaymentModal from '../components/PreOrderPaymentModal';
 import PreOrderCard from '../components/PreOrderCard';
 import MembershipApplicationModal from '../components/MembershipApplicationModal';
 import { Event } from '../types';
@@ -15,6 +15,7 @@ const Home: React.FC = () => {
   const { user } = useAuth();
   const { events, loading } = useEvents();
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [selectedPreOrderEvent, setSelectedPreOrderEvent] = useState<Event | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPreOrderModalOpen, setIsPreOrderModalOpen] = useState(false);
   const [isMembershipModalOpen, setIsMembershipModalOpen] = useState(false);
@@ -34,7 +35,7 @@ const Home: React.FC = () => {
       window.location.href = '/login';
       return;
     }
-    setSelectedEvent(event);
+    setSelectedPreOrderEvent(event);
     setIsPreOrderModalOpen(true);
   };
 
@@ -418,8 +419,8 @@ const Home: React.FC = () => {
         onPurchaseComplete={handlePurchaseComplete}
       />
 
-      <PreOrderModal
-        event={selectedEvent}
+      <PreOrderPaymentModal
+        event={selectedPreOrderEvent}
         isOpen={isPreOrderModalOpen}
         onClose={() => setIsPreOrderModalOpen(false)}
         onPreOrderComplete={handlePreOrderComplete}

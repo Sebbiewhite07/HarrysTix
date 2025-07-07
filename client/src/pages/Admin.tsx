@@ -10,6 +10,7 @@ import AdminApplications from './AdminApplications';
 import AdminAnalytics from './AdminAnalytics';
 import AdminSettings from './AdminSettings';
 import AdminPreOrders from './AdminPreOrders';
+import AdminPreOrderManagement from './AdminPreOrderManagement';
 
 const Admin: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -107,6 +108,7 @@ const Admin: React.FC = () => {
     { id: 'users', label: 'Users', icon: Users },
     { id: 'applications', label: 'Applications', icon: FileText },
     { id: 'pre-orders', label: 'Pre-Orders', icon: Package },
+    { id: 'pre-order-management', label: 'Pre-Order Management', icon: Crown },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
@@ -147,6 +149,7 @@ const Admin: React.FC = () => {
         {activeTab === 'users' && <AdminUsers />}
         {activeTab === 'applications' && <AdminApplications />}
         {activeTab === 'pre-orders' && <AdminPreOrders />}
+        {activeTab === 'pre-order-management' && <AdminPreOrderManagement />}
         {activeTab === 'analytics' && <AdminAnalytics />}
         {activeTab === 'settings' && <AdminSettings />}
 

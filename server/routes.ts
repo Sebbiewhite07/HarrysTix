@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
@@ -11,8 +12,18 @@ import {
   insertTicketSchema, 
   insertMembershipApplicationSchema,
   insertInviteCodeSchema,
+  insertPreOrderSchema,
   type UserProfile 
 } from "@shared/schema";
+import Stripe from "stripe";
+
+// Initialize Stripe
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2024-06-20",
+});
 
 // Session configuration
 declare module 'express-session' {
@@ -497,9 +508,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "You already have a pre-order for this event" });
       }
 
-      const { eventId, quantity } = req.body;
+      const { eventId, quantity, paymentMethodId } = req.body;
       
-      if (!eventId || !quantity || quantity <= 0) {
+      if (!eventId || !quantity || quantity <= 0 || !paymentMethodId) {
         return res.status(400).json({ error: "Invalid pre-order data" });
       }
 
@@ -509,7 +520,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Event not found" });
       }
 
+      // Check if event is available for pre-order
+      if (event.status !== "pre-order") {
+        return res.status(400).json({ error: "Event is not available for pre-order" });
+      }
+
       const totalPrice = (parseFloat(event.memberPrice) * quantity).toFixed(2);
+
+      // Create or get Stripe customer
+      let stripeCustomerId = user.stripeCustomerId;
+      if (!stripeCustomerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: user.name,
+          metadata: { userId: user.id }
+        });
+        stripeCustomerId = customer.id;
+        
+        // Update user with Stripe customer ID
+        await storage.updateUserProfile(user.id, { stripeCustomerId });
+      }
+
+      // Attach payment method to customer
+      await stripe.paymentMethods.attach(paymentMethodId, {
+        customer: stripeCustomerId,
+      });
+
       const preOrderId = randomUUID();
 
       const preOrder = await storage.createPreOrder({
@@ -518,8 +554,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         eventId,
         quantity,
         totalPrice,
-        paymentMethodId: null,
-        stripeCustomerId: null,
+        paymentMethodId,
+        stripeCustomerId,
       });
 
       res.json(preOrder);
@@ -542,6 +578,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error cancelling pre-order:", error);
       res.status(500).json({ error: "Failed to cancel pre-order" });
+    }
+  });
+
+  // Stripe endpoints
+  app.post("/api/create-setup-intent", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUserProfile(req.user.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Create or get Stripe customer
+      let stripeCustomerId = user.stripeCustomerId;
+      if (!stripeCustomerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: user.name,
+          metadata: { userId: user.id }
+        });
+        stripeCustomerId = customer.id;
+        
+        // Update user with Stripe customer ID
+        await storage.updateUserProfile(user.id, { stripeCustomerId });
+      }
+
+      // Create setup intent
+      const setupIntent = await stripe.setupIntents.create({
+        customer: stripeCustomerId,
+        usage: 'off_session',
+      });
+
+      res.json({ client_secret: setupIntent.client_secret });
+    } catch (error) {
+      console.error("Error creating setup intent:", error);
+      res.status(500).json({ error: "Failed to create setup intent" });
+    }
+  });
+
+  // Admin endpoints for pre-order management
+  app.get("/api/admin/pre-orders", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const allPreOrders = await storage.getAllPreOrders();
+      
+      // Fetch additional details for each pre-order
+      const preOrdersWithDetails = await Promise.all(
+        allPreOrders.map(async (preOrder) => {
+          const event = await storage.getEvent(preOrder.eventId);
+          const user = await storage.getUserProfile(preOrder.userId);
+          
+          return {
+            ...preOrder,
+            event,
+            user: user ? { name: user.name, email: user.email } : null
+          };
+        })
+      );
+
+      res.json(preOrdersWithDetails);
+    } catch (error) {
+      console.error("Error fetching admin pre-orders:", error);
+      res.status(500).json({ error: "Failed to fetch pre-orders" });
+    }
+  });
+
+  app.patch("/api/admin/pre-orders/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      const updatedPreOrder = await storage.updatePreOrderStatus(id, status, {
+        approvedAt: status === 'approved' ? new Date() : undefined
+      });
+
+      if (!updatedPreOrder) {
+        return res.status(404).json({ error: "Pre-order not found" });
+      }
+
+      res.json(updatedPreOrder);
+    } catch (error) {
+      console.error("Error updating pre-order:", error);
+      res.status(500).json({ error: "Failed to update pre-order" });
+    }
+  });
+
+  // Admin pre-order fulfillment endpoint
+  app.post("/api/admin/fulfill-pre-orders", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { preOrderIds } = req.body;
+      
+      if (!Array.isArray(preOrderIds) || preOrderIds.length === 0) {
+        return res.status(400).json({ error: "No pre-orders specified" });
+      }
+
+      const results = [];
+      const allPreOrders = await storage.getAllPreOrders();
+
+      for (const preOrderId of preOrderIds) {
+        try {
+          // Get pre-order details
+          const preOrder = allPreOrders.find(po => po.id === preOrderId);
+          
+          if (!preOrder || (preOrder.status !== "pending" && preOrder.status !== "approved")) {
+            results.push({ preOrderId, status: "failed", error: "Invalid pre-order" });
+            continue;
+          }
+
+          if (!preOrder.stripeCustomerId || !preOrder.paymentMethodId) {
+            results.push({ preOrderId, status: "failed", error: "Missing payment information" });
+            continue;
+          }
+
+          // Create payment intent with off_session
+          const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(parseFloat(preOrder.totalPrice) * 100), // Convert to cents
+            currency: 'gbp',
+            customer: preOrder.stripeCustomerId,
+            payment_method: preOrder.paymentMethodId,
+            off_session: true,
+            confirm: true,
+            metadata: {
+              preOrderId: preOrder.id,
+              eventId: preOrder.eventId,
+              userId: preOrder.userId
+            }
+          });
+
+          // Update pre-order with payment intent ID
+          await storage.updatePreOrderStatus(preOrder.id, "processing", {
+            stripePaymentIntentId: paymentIntent.id
+          });
+
+          results.push({ 
+            preOrderId, 
+            status: "processing", 
+            paymentIntentId: paymentIntent.id 
+          });
+
+        } catch (error: any) {
+          console.error(`Error processing pre-order ${preOrderId}:`, error);
+          
+          // Mark as failed
+          await storage.updatePreOrderStatus(preOrderId, "failed", {
+            failedAt: new Date()
+          });
+
+          results.push({ 
+            preOrderId, 
+            status: "failed", 
+            error: error.message 
+          });
+        }
+      }
+
+      res.json({ results });
+    } catch (error) {
+      console.error("Error fulfilling pre-orders:", error);
+      res.status(500).json({ error: "Failed to fulfill pre-orders" });
     }
   });
 
@@ -648,6 +841,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating membership application:", error);
       res.status(500).json({ error: "Failed to update application" });
+    }
+  });
+
+  // Stripe webhook endpoint
+  app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET || '');
+    } catch (err: any) {
+      console.error('Webhook signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    try {
+      switch (event.type) {
+        case 'payment_intent.succeeded':
+          const paymentIntent = event.data.object;
+          const preOrderId = paymentIntent.metadata.preOrderId;
+          const eventId = paymentIntent.metadata.eventId;
+          const userId = paymentIntent.metadata.userId;
+
+          if (preOrderId && eventId && userId) {
+            // Get pre-order details
+            const allPreOrders = await storage.getAllPreOrders();
+            const preOrder = allPreOrders.find(po => po.id === preOrderId);
+            
+            if (preOrder) {
+              // Create ticket for the user
+              const ticketId = randomUUID();
+              const confirmationCode = `TIX-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+              
+              const ticket = await storage.createTicket({
+                id: ticketId,
+                eventId,
+                userId,
+                quantity: preOrder.quantity,
+                totalPrice: preOrder.totalPrice,
+                confirmationCode,
+              });
+
+              // Update pre-order status to paid
+              await storage.updatePreOrderStatus(preOrderId, "paid", {
+                paidAt: new Date(),
+                ticketId: ticket.id
+              });
+
+              console.log(`✅ Pre-order ${preOrderId} fulfilled successfully - Ticket ${ticketId} created`);
+            }
+          }
+          break;
+
+        case 'payment_intent.payment_failed':
+          const failedPaymentIntent = event.data.object;
+          const failedPreOrderId = failedPaymentIntent.metadata.preOrderId;
+
+          if (failedPreOrderId) {
+            await storage.updatePreOrderStatus(failedPreOrderId, "failed", {
+              failedAt: new Date()
+            });
+            console.log(`❌ Pre-order ${failedPreOrderId} payment failed`);
+          }
+          break;
+
+        default:
+          console.log(`Unhandled event type: ${event.type}`);
+      }
+
+      res.json({ received: true });
+    } catch (error) {
+      console.error('Error processing webhook:', error);
+      res.status(500).json({ error: 'Webhook processing failed' });
     }
   });
 
