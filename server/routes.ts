@@ -6,6 +6,7 @@ import { z } from "zod";
 import bcrypt from "bcrypt";
 import session from "express-session";
 import { randomUUID } from "crypto";
+import { processWeeklyPreOrders } from './scheduler';
 import { 
   insertUserProfileSchema, 
   insertEventSchema, 
@@ -512,11 +513,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { eventId, quantity, paymentMethodId } = req.body;
       
-      // Check if user already has a pre-order for this specific event
-      const existingEventPreOrder = await storage.getPreOrdersByUserId(req.user.id);
-      const hasPreOrderForEvent = existingEventPreOrder.some(po => po.eventId === eventId);
-      if (hasPreOrderForEvent) {
-        return res.status(400).json({ error: "You already have a pre-order for this event" });
+      // Check if user already has a pre-order for this week (Monday to Sunday)
+      const existingUserPreOrders = await storage.getPreOrdersByUserId(req.user.id);
+      const weeklyPreOrder = await storage.getUserWeeklyPreOrder(req.user.id);
+      
+      if (weeklyPreOrder && weeklyPreOrder.status !== 'cancelled') {
+        return res.status(400).json({ error: "You already have a pre-order for this week. Members can only pre-order 1 event per week." });
       }
       
       if (!eventId || !quantity || quantity <= 0 || !paymentMethodId) {
@@ -744,6 +746,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fulfilling pre-orders:", error);
       res.status(500).json({ error: "Failed to fulfill pre-orders" });
+    }
+  });
+
+  // Stripe webhook handler for payment confirmation
+  app.post("/webhook", express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig!, process.env.STRIPE_WEBHOOK_SECRET!);
+    } catch (err: any) {
+      console.error(`Webhook signature verification failed: ${err.message}`);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Handle the event
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        const paymentIntent = event.data.object;
+        console.log('Payment succeeded:', paymentIntent.id);
+        
+        // Get pre-order ID from metadata
+        const preOrderId = paymentIntent.metadata?.preOrderId;
+        if (preOrderId) {
+          try {
+            // Update pre-order status to paid
+            await storage.updatePreOrderStatus(preOrderId, "paid", {
+              paidAt: new Date()
+            });
+
+            // Get pre-order details to create ticket
+            const preOrder = (await storage.getAllPreOrders()).find(po => po.id === preOrderId);
+            if (preOrder) {
+              // Create ticket after successful payment
+              const ticketId = randomUUID();
+              const confirmationCode = `HTX-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+              
+              await storage.createTicket({
+                id: ticketId,
+                eventId: preOrder.eventId,
+                userId: preOrder.userId,
+                quantity: preOrder.quantity,
+                totalPrice: preOrder.totalPrice,
+                confirmationCode,
+                status: 'confirmed',
+                purchaseDate: new Date(),
+              });
+
+              console.log(`Ticket created for pre-order ${preOrderId}: ${confirmationCode}`);
+            }
+          } catch (error) {
+            console.error(`Error processing successful payment for pre-order ${preOrderId}:`, error);
+          }
+        }
+        break;
+      
+      case 'payment_intent.payment_failed':
+        const failedPayment = event.data.object;
+        console.log('Payment failed:', failedPayment.id);
+        
+        const failedPreOrderId = failedPayment.metadata?.preOrderId;
+        if (failedPreOrderId) {
+          try {
+            await storage.updatePreOrderStatus(failedPreOrderId, "failed", {
+              failedAt: new Date()
+            });
+            console.log(`Pre-order ${failedPreOrderId} marked as failed`);
+          } catch (error) {
+            console.error(`Error updating failed pre-order ${failedPreOrderId}:`, error);
+          }
+        }
+        break;
+      
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
+    }
+
+    res.json({ received: true });
+  });
+
+  // Manual trigger for weekly pre-order processing (admin only)
+  app.post("/api/admin/process-weekly-preorders", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      console.log('Manual weekly pre-order processing triggered by admin');
+      const results = await processWeeklyPreOrders();
+      res.json({ 
+        success: true, 
+        message: 'Weekly pre-order processing completed',
+        results 
+      });
+    } catch (error) {
+      console.error('Error in manual weekly processing:', error);
+      res.status(500).json({ error: 'Failed to process weekly pre-orders' });
     }
   });
 
