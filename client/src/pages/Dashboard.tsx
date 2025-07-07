@@ -152,7 +152,12 @@ const Dashboard: React.FC = () => {
                 <h2 className="text-2xl font-bold text-neon-cyan">Your Tickets</h2>
               </div>
               
-              {tickets.length > 0 ? (
+              {ticketsLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p className="text-gray-400">Loading tickets...</p>
+                </div>
+              ) : tickets.length > 0 ? (
                 <div className="space-y-4">
                   {tickets.map((ticket) => (
                     <div
@@ -162,7 +167,7 @@ const Dashboard: React.FC = () => {
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-lg font-semibold text-neon-cyan">{ticket.event?.title || 'Event'}</h3>
                         <div className="text-right">
-                          <div className="text-sm text-gray-400">£{ticket.price}</div>
+                          <div className="text-sm text-gray-400">£{ticket.totalPrice}</div>
                           <div className="text-xs text-green-400 pulse">Confirmed</div>
                         </div>
                       </div>
@@ -178,6 +183,9 @@ const Dashboard: React.FC = () => {
                         <div className="flex items-center space-x-2 text-gray-300">
                           <span className="text-neon-purple">{ticket.event?.venue || 'TBD'}</span>
                         </div>
+                      </div>
+                      <div className="mt-2 text-sm text-gray-400">
+                        Quantity: {ticket.quantity} • Purchase Date: {new Date(ticket.purchaseDate).toLocaleDateString()}
                       </div>
                       <div className="mt-3 pt-3 border-t border-gray-700">
                         <div className="flex items-center justify-between">

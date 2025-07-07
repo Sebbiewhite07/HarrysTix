@@ -64,9 +64,30 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({
       if (error) {
         setErrorMessage(error.message || 'Payment failed');
       } else {
-        // Payment succeeded
-        onPurchaseComplete();
-        onClose();
+        // Payment succeeded - create ticket immediately
+        try {
+          const response = await fetch('/api/tickets/confirm-payment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              eventId: event.id,
+              quantity,
+              totalPrice: totalAmount,
+            }),
+          });
+
+          if (response.ok) {
+            onPurchaseComplete();
+            onClose();
+          } else {
+            setErrorMessage('Payment processed but ticket creation failed. Please contact support.');
+          }
+        } catch (err) {
+          setErrorMessage('Payment processed but ticket creation failed. Please contact support.');
+        }
       }
     } catch (err) {
       setErrorMessage('An unexpected error occurred');

@@ -456,6 +456,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create ticket after successful payment confirmation
+  app.post('/api/tickets/confirm-payment', requireAuth, async (req, res) => {
+    try {
+      const { eventId, quantity, totalPrice } = req.body;
+      
+      if (!eventId || !quantity || !totalPrice) {
+        return res.status(400).json({ 
+          error: "Missing required fields", 
+          required: ["eventId", "quantity", "totalPrice"] 
+        });
+      }
+      
+      const ticketId = randomUUID();
+      const confirmationCode = `HTX-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      
+      const ticket = await storage.createTicket({
+        id: ticketId,
+        eventId: eventId,
+        userId: req.user.id,
+        quantity: parseInt(quantity),
+        totalPrice: totalPrice.toString(),
+        confirmationCode,
+        status: 'confirmed',
+        purchaseDate: new Date(),
+      });
+
+      console.log(`✅ Direct ticket created after payment: ${confirmationCode} for user ${req.user.id}`);
+
+      // Send ticket confirmation email asynchronously
+      setImmediate(async () => {
+        try {
+          const user = await storage.getUserProfile(req.user.id);
+          const event = await storage.getEvent(eventId);
+          
+          if (user && event) {
+            const emailResult = await sendTicketConfirmationEmail(user, ticket, event);
+            if (emailResult.success) {
+              console.log(`✅ Direct ticket email sent to ${user.email} for ${ticket.confirmationCode}`);
+            }
+          }
+        } catch (emailError) {
+          console.error(`Error sending direct ticket email:`, emailError);
+        }
+      });
+      
+      res.json(ticket);
+    } catch (error) {
+      console.error('Confirm payment ticket error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Legacy ticket creation endpoint (for demo purposes)
   app.post('/api/tickets', requireAuth, async (req, res) => {
     try {
       const { eventId, quantity, totalPrice } = req.body;
@@ -852,19 +905,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const paymentIntent = event.data.object;
         console.log('Payment succeeded:', paymentIntent.id);
         
-        // Get pre-order ID from metadata
         const preOrderId = paymentIntent.metadata?.preOrderId;
+        const eventId = paymentIntent.metadata?.eventId;
+        const userId = paymentIntent.metadata?.userId;
+        const quantity = paymentIntent.metadata?.quantity;
+        
         if (preOrderId) {
+          // Handle pre-order payment
           try {
-            // Update pre-order status to paid
             await storage.updatePreOrderStatus(preOrderId, "paid", {
               paidAt: new Date()
             });
 
-            // Get pre-order details to create ticket
             const preOrder = (await storage.getAllPreOrders()).find(po => po.id === preOrderId);
             if (preOrder) {
-              // Create ticket after successful payment
               const ticketId = randomUUID();
               const confirmationCode = `HTX-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
               
@@ -881,35 +935,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
               console.log(`Ticket created for pre-order ${preOrderId}: ${confirmationCode}`);
               
-              // Send email notification to user
+              // Send email notification asynchronously
+              setImmediate(async () => {
+                try {
+                  const user = await storage.getUserProfile(preOrder.userId);
+                  const event = await storage.getEvent(preOrder.eventId);
+                  
+                  if (user && event) {
+                    const emailResult = await sendTicketConfirmationEmail(user, {
+                      id: ticketId,
+                      eventId: preOrder.eventId,
+                      userId: preOrder.userId,
+                      quantity: preOrder.quantity,
+                      totalPrice: preOrder.totalPrice,
+                      confirmationCode,
+                      status: 'confirmed',
+                      purchaseDate: new Date(),
+                    }, event);
+                    
+                    if (emailResult.success) {
+                      console.log(`✅ Pre-order ticket email sent to ${user.email} for ${confirmationCode}`);
+                    }
+                  }
+                } catch (emailError) {
+                  console.error(`Error sending pre-order ticket email:`, emailError);
+                }
+              });
+            }
+          } catch (error) {
+            console.error(`Error processing pre-order payment ${preOrderId}:`, error);
+          }
+        } else if (eventId && userId && quantity) {
+          // Handle direct ticket payment
+          try {
+            const ticketId = randomUUID();
+            const confirmationCode = `HTX-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+            const totalPrice = (paymentIntent.amount / 100).toString(); // Convert from pence
+            
+            const ticket = await storage.createTicket({
+              id: ticketId,
+              eventId,
+              userId,
+              quantity: parseInt(quantity),
+              totalPrice,
+              confirmationCode,
+              status: 'confirmed',
+              purchaseDate: new Date(),
+            });
+            
+            console.log(`Direct ticket created: ${confirmationCode} for user ${userId}`);
+            
+            // Send email notification asynchronously
+            setImmediate(async () => {
               try {
-                const user = await storage.getUserProfile(preOrder.userId);
-                const event = await storage.getEvent(preOrder.eventId);
+                const user = await storage.getUserProfile(userId);
+                const event = await storage.getEvent(eventId);
                 
                 if (user && event) {
-                  const emailResult = await sendTicketConfirmationEmail(user, {
-                    id: ticketId,
-                    eventId: preOrder.eventId,
-                    userId: preOrder.userId,
-                    quantity: preOrder.quantity,
-                    totalPrice: preOrder.totalPrice,
-                    confirmationCode,
-                    status: 'confirmed',
-                    purchaseDate: new Date(),
-                  }, event);
-                  
+                  const emailResult = await sendTicketConfirmationEmail(user, ticket, event);
                   if (emailResult.success) {
-                    console.log(`✅ Ticket email sent to ${user.email} for ${confirmationCode}`);
-                  } else {
-                    console.error(`❌ Failed to send ticket email: ${emailResult.error}`);
+                    console.log(`✅ Direct ticket email sent to ${user.email} for ${confirmationCode}`);
                   }
                 }
               } catch (emailError) {
-                console.error(`Error sending ticket email for ${preOrderId}:`, emailError);
+                console.error(`Error sending direct ticket email:`, emailError);
               }
-            }
+            });
+            
           } catch (error) {
-            console.error(`Error processing successful payment for pre-order ${preOrderId}:`, error);
+            console.error(`Error processing direct ticket payment:`, error);
           }
         }
         break;
