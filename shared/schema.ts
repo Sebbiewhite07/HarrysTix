@@ -75,6 +75,25 @@ export const inviteCodes = pgTable("invite_codes", {
   expiryDate: timestamp("expiry_date").notNull(),
 });
 
+// Pre-orders table for member ticket pre-ordering
+export const preOrders = pgTable("pre_orders", {
+  id: uuid("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => userProfiles.id, { onDelete: 'cascade' }),
+  eventId: uuid("event_id").notNull().references(() => events.id, { onDelete: 'cascade' }),
+  quantity: integer("quantity").default(1).notNull(),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  status: text("status").notNull().default("pending"), // pending, approved, paid, failed, cancelled
+  paymentMethodId: text("payment_method_id"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  approvedAt: timestamp("approved_at"),
+  paidAt: timestamp("paid_at"),
+  failedAt: timestamp("failed_at"),
+  cancelledAt: timestamp("cancelled_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Schema definitions for forms and validation
 export const insertUserProfileSchema = createInsertSchema(userProfiles).pick({
   email: true,
@@ -123,6 +142,15 @@ export const insertInviteCodeSchema = createInsertSchema(inviteCodes).pick({
   expiryDate: true,
 });
 
+export const insertPreOrderSchema = createInsertSchema(preOrders).pick({
+  userId: true,
+  eventId: true,
+  quantity: true,
+  totalPrice: true,
+  paymentMethodId: true,
+  stripeCustomerId: true,
+});
+
 // Type exports
 export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
 export type UserProfile = typeof userProfiles.$inferSelect;
@@ -138,6 +166,9 @@ export type MembershipApplication = typeof membershipApplications.$inferSelect;
 
 export type InsertInviteCode = z.infer<typeof insertInviteCodeSchema>;
 export type InviteCode = typeof inviteCodes.$inferSelect;
+
+export type InsertPreOrder = z.infer<typeof insertPreOrderSchema>;
+export type PreOrder = typeof preOrders.$inferSelect;
 
 // Legacy exports for compatibility during migration
 export const users = userProfiles;

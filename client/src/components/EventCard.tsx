@@ -6,9 +6,10 @@ import { useAuth } from '../contexts/AuthContext';
 interface EventCardProps {
   event: Event;
   onBuyTicket: (event: Event) => void;
+  onPreOrder?: (event: Event) => void;
 }
 
-const EventCard: React.FC<EventCardProps> = ({ event, onBuyTicket }) => {
+const EventCard: React.FC<EventCardProps> = ({ event, onBuyTicket, onPreOrder }) => {
   const { user } = useAuth();
   const isSoldOut = event.soldTickets >= event.maxTickets;
   const isLive = event.isLive && new Date() >= event.dropTime;

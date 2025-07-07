@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import session from "express-session";
+import { randomUUID } from "crypto";
 import { 
   insertUserProfileSchema, 
   insertEventSchema, 
@@ -50,7 +51,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUser = await storage.getUserProfileByEmail('admin@example.com');
       if (!adminUser) {
         await storage.createUserProfile({
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           email: 'admin@example.com',
           name: 'Admin User',
         });
@@ -70,7 +71,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const memberUser = await storage.getUserProfileByEmail('member@example.com');
       if (!memberUser) {
         await storage.createUserProfile({
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           email: 'member@example.com',
           name: 'Member User',
         });
@@ -88,7 +89,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const regularUser = await storage.getUserProfileByEmail('user@example.com');
       if (!regularUser) {
         await storage.createUserProfile({
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           email: 'user@example.com',
           name: 'Regular User',
         });
@@ -99,7 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingEvents.length === 0) {
         const events = [
           {
-            id: crypto.randomUUID(),
+            id: randomUUID(),
             title: 'Warehouse Rave',
             venue: 'Ministry of Sound',
             date: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -115,7 +116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: 'The biggest underground event of the term. Harry\'s bringing the heat!'
           },
           {
-            id: crypto.randomUUID(),
+            id: randomUUID(),
             title: 'Freshers Finale',
             venue: 'Fabric',
             date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
@@ -131,7 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: 'End your Freshers week with a bang. This is THE event everyone\'s talking about.'
           },
           {
-            id: crypto.randomUUID(),
+            id: randomUUID(),
             title: 'Techno Thursday',
             venue: 'XOYO',
             date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -197,7 +198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hashedPassword = await bcrypt.hash(password, 10);
       
       // Create user profile
-      const userId = crypto.randomUUID();
+      const userId = randomUUID();
       const user = await storage.createUserProfile({
         id: userId,
         email,
@@ -300,7 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: req.body.description || null,
       };
       
-      const eventId = crypto.randomUUID();
+      const eventId = randomUUID();
       
       const event = await storage.createEvent({
         id: eventId,
@@ -350,7 +351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const createdTickets = [];
       for (const ticketData of parsedTickets) {
         const ticket = await storage.createTicket({
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           eventId,
           userId: currentUserId, // Use admin user who uploaded the tickets
           quantity: 1,
@@ -399,7 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/tickets', requireAuth, async (req, res) => {
     try {
       const ticketData = insertTicketSchema.parse(req.body);
-      const ticketId = crypto.randomUUID();
+      const ticketId = randomUUID();
       
       // Generate confirmation code
       const confirmationCode = `HTX-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
@@ -432,7 +433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/membership-applications', async (req, res) => {
     try {
       const applicationData = insertMembershipApplicationSchema.parse(req.body);
-      const applicationId = crypto.randomUUID();
+      const applicationId = randomUUID();
       
       const application = await storage.createMembershipApplication({
         id: applicationId,
@@ -471,7 +472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/invite-codes', requireAuth, requireAdmin, async (req, res) => {
     try {
       const inviteData = insertInviteCodeSchema.parse(req.body);
-      const inviteId = crypto.randomUUID();
+      const inviteId = randomUUID();
       
       const inviteCode = await storage.createInviteCode({
         id: inviteId,
@@ -505,6 +506,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Use invite code error:', error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Pre-order endpoints
+  app.get("/api/pre-orders", requireAuth, async (req, res) => {
+    try {
+      const preOrders = await storage.getPreOrdersByUserId(req.user.id);
+      res.json(preOrders);
+    } catch (error) {
+      console.error("Error fetching pre-orders:", error);
+      res.status(500).json({ error: "Failed to fetch pre-orders" });
+    }
+  });
+
+  app.get("/api/pre-orders/weekly", requireAuth, async (req, res) => {
+    try {
+      const weeklyPreOrder = await storage.getUserWeeklyPreOrder(req.user.id);
+      res.json(weeklyPreOrder || null);
+    } catch (error) {
+      console.error("Error fetching weekly pre-order:", error);
+      res.status(500).json({ error: "Failed to fetch weekly pre-order" });
+    }
+  });
+
+  app.post("/api/pre-orders", requireAuth, async (req, res) => {
+    try {
+      // Check if user is a member
+      const user = await storage.getUserProfile(req.user.id);
+      if (!user?.isMember) {
+        return res.status(403).json({ error: "Only Harry's Club members can place pre-orders" });
+      }
+
+      // Check if user already has a pre-order this week
+      const existingPreOrder = await storage.getUserWeeklyPreOrder(req.user.id);
+      if (existingPreOrder) {
+        return res.status(400).json({ error: "You already have a pre-order for this week" });
+      }
+
+      const { eventId, quantity } = req.body;
+      
+      if (!eventId || !quantity || quantity <= 0) {
+        return res.status(400).json({ error: "Invalid pre-order data" });
+      }
+
+      // Get event to calculate price
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      const totalPrice = (parseFloat(event.memberPrice) * quantity).toFixed(2);
+      const preOrderId = randomUUID();
+
+      const preOrder = await storage.createPreOrder({
+        id: preOrderId,
+        userId: req.user.id,
+        eventId,
+        quantity,
+        totalPrice,
+        paymentMethodId: null,
+        stripeCustomerId: null,
+      });
+
+      res.json(preOrder);
+    } catch (error) {
+      console.error("Error creating pre-order:", error);
+      res.status(500).json({ error: "Failed to create pre-order" });
+    }
+  });
+
+  app.delete("/api/pre-orders/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const cancelledPreOrder = await storage.cancelPreOrder(id, req.user.id);
+      
+      if (!cancelledPreOrder) {
+        return res.status(404).json({ error: "Pre-order not found or cannot be cancelled" });
+      }
+
+      res.json(cancelledPreOrder);
+    } catch (error) {
+      console.error("Error cancelling pre-order:", error);
+      res.status(500).json({ error: "Failed to cancel pre-order" });
+    }
+  });
+
+  // Admin pre-order management
+  app.get("/api/admin/pre-orders", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const preOrders = await storage.getAllPreOrders();
+      res.json(preOrders);
+    } catch (error) {
+      console.error("Error fetching all pre-orders:", error);
+      res.status(500).json({ error: "Failed to fetch pre-orders" });
+    }
+  });
+
+  app.patch("/api/admin/pre-orders/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, ...additionalFields } = req.body;
+
+      const updatedPreOrder = await storage.updatePreOrderStatus(id, status, additionalFields);
+      
+      if (!updatedPreOrder) {
+        return res.status(404).json({ error: "Pre-order not found" });
+      }
+
+      res.json(updatedPreOrder);
+    } catch (error) {
+      console.error("Error updating pre-order:", error);
+      res.status(500).json({ error: "Failed to update pre-order" });
     }
   });
 

@@ -1,0 +1,127 @@
+# Harry’s Tix – Pre-Order System Feature Brief
+
+**Feature**: Invite-only **Harry’s Club** members can **pre-order tickets** before public release.
+
+**Objective**: Charge users only *after supply is confirmed*, then send tickets upon successful payment.
+
+---
+
+## 🧑‍🎓 **USER SIDE – Member Pre-Order Experience**
+
+### A. **Pre-Order Flow**
+
+- Logged-in members can pre-order 1 event ticket per week.
+- Pre-order form includes:
+    - Event title
+    - Ticket quantity (limit = 1)
+    - Price preview (with member discount)
+    - Card entry (Stripe SetupIntent)
+    - Confirm CTA: “Pre-order – no charge now”
+- **Backend logic**:
+    - Create Stripe `Customer` and store `payment_method_id` via SetupIntent
+    - Save pre-order in database with:
+        - user_id
+        - event_id
+        - status: `pending`
+        - payment_method_id
+        - Stripe customer ID
+
+### B. **UI Feedback**
+
+- After placing pre-order:
+    - Show status: **“Pre-order received. We’ll charge your card at 7PM Tuesday if your ticket is confirmed.”**
+    - Option to cancel or edit pre-order before Sunday 11:59PM
+    - Display current week’s pre-order status in dashboard:
+        - **Pending**
+        - **Successful – Ticket Sent**
+        - **Failed – Card Declined**
+
+---
+
+## 🧑‍💼 **ADMIN SIDE – Pre-Order Management**
+
+### A. **Admin Dashboard – Event Pre-Orders**
+
+- View list of all pre-orders per event:
+    - User info (name, email)
+    - Timestamp
+    - Payment status
+    - Option to approve/deny manually (or bulk select all)
+- Admin marks which pre-orders to fulfil (or auto-fulfil if ticket supply available)
+- Backend flags approved orders as `approved`
+
+Note sometimes there will be more pre orders then tickets avalible. So members wont be charged. 
+
+---
+
+## 💳 **PAYMENT & TICKET DELIVERY LOGIC**
+
+### A. **Scheduled Fulfilment Script (Run @ 7PM Tues But needs to be innitiated manually by admin)**
+
+- For each approved pre-order:
+    - Create a Stripe `PaymentIntent` using stored `payment_method_id` and `customer_id`
+    - Set `off_session: true` and `confirm: true`
+
+```
+await stripe.paymentIntents.create({
+  amount: ticketPrice * 100,
+  currency: 'gbp',
+  customer: customerId,
+  payment_method: paymentMethodId,
+  off_session: true,
+  confirm: true
+});
+
+```
+
+### B. **Stripe Webhook – Payment Confirmation**
+
+- Listen to `payment_intent.succeeded`:
+    - Mark pre-order as `paid`
+    - Trigger ticket delivery function:
+        - Assign ticket from pool
+        - Email ticket (MailerSend or Resend API)
+        - Display in user dashboard
+- Listen to `payment_intent.payment_failed`:
+    - Mark pre-order as `failed`
+    - Send email: “Card declined – try public drop”
+
+Auto assign the ticket to the user who pre ordered it 
+
+---
+
+## 🧩 **Other Technical Notes**
+
+- Ensure ticket pool is reserved and matched to successful payments only
+- Add fallback admin tool to resend ticket if email fails
+- Retry logic not required: failed = cancel
+- Optional: webhook retry logging
+
+---
+
+## ✅ Summary of Requirements
+
+### USER
+
+- Pre-order UI (Mon–Sun)
+- Stripe card setup (no charge)
+- Dashboard pre-order status + cancel/edit
+- Email alerts: pre-order placed, ticket received, or failed
+
+### ADMIN
+
+- Event-level pre-order list
+- Manual approval toggle per user
+- Stripe charge script (7PM Tuesday)
+- Order status change + fulfilment
+- Ticket assignment + delivery trigger
+
+---
+
+Let me know if you want:
+
+- The complete **Stripe webhook handler code**
+- Admin dashboard wireframes
+- Pre-order schema design or database structure suggestion
+
+You can now give this brief directly to the developer for implementation.

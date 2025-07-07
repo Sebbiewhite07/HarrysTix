@@ -80,3 +80,21 @@ export interface InviteCode {
   createdDate: Date;
   expiryDate: Date;
 }
+
+export interface PreOrder {
+  id: string;
+  eventId: string;
+  userId: string;
+  quantity: number;
+  totalPrice: string;
+  status: string;
+  paymentMethodId?: string;
+  stripeCustomerId?: string;
+  stripePaymentIntentId?: string;
+  approvedAt?: Date;
+  paidAt?: Date;
+  failedAt?: Date;
+  cancelledAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}

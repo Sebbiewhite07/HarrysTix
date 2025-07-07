@@ -4,20 +4,23 @@ import {
   tickets, 
   membershipApplications, 
   inviteCodes,
+  preOrders,
   type UserProfile, 
   type Event, 
   type Ticket, 
   type MembershipApplication, 
   type InviteCode,
+  type PreOrder,
   type InsertUserProfile, 
   type InsertEvent, 
   type InsertTicket, 
   type InsertMembershipApplication, 
   type InsertInviteCode,
+  type InsertPreOrder,
   type User,
   type InsertUser 
 } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lte } from "drizzle-orm";
 import { db } from "./db";
 
 export interface IStorage {
@@ -47,6 +50,15 @@ export interface IStorage {
   getInviteCode(code: string): Promise<InviteCode | undefined>;
   createInviteCode(inviteCode: InsertInviteCode & { id: string }): Promise<InviteCode>;
   useInviteCode(code: string, userId: string): Promise<InviteCode | undefined>;
+  
+  // Pre-Order methods
+  getAllPreOrders(): Promise<PreOrder[]>;
+  getPreOrdersByEventId(eventId: string): Promise<PreOrder[]>;
+  getPreOrdersByUserId(userId: string): Promise<PreOrder[]>;
+  getUserWeeklyPreOrder(userId: string): Promise<PreOrder | undefined>;
+  createPreOrder(preOrder: InsertPreOrder & { id: string }): Promise<PreOrder>;
+  updatePreOrderStatus(id: string, status: string, additionalFields?: Partial<PreOrder>): Promise<PreOrder | undefined>;
+  cancelPreOrder(id: string, userId: string): Promise<PreOrder | undefined>;
   
   // Legacy methods for backward compatibility
   getUser(id: number): Promise<User | undefined>;
@@ -162,6 +174,64 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  // Pre-Order methods
+  async getAllPreOrders(): Promise<PreOrder[]> {
+    return await db.select().from(preOrders).orderBy(preOrders.createdAt);
+  }
+
+  async getPreOrdersByEventId(eventId: string): Promise<PreOrder[]> {
+    return await db.select().from(preOrders).where(eq(preOrders.eventId, eventId)).orderBy(preOrders.createdAt);
+  }
+
+  async getPreOrdersByUserId(userId: string): Promise<PreOrder[]> {
+    return await db.select().from(preOrders).where(eq(preOrders.userId, userId)).orderBy(preOrders.createdAt);
+  }
+
+  async getUserWeeklyPreOrder(userId: string): Promise<PreOrder | undefined> {
+    // Get current week's pre-order (Monday to Sunday)
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
+    monday.setHours(0, 0, 0, 0);
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    const result = await db.select().from(preOrders)
+      .where(
+        and(
+          eq(preOrders.userId, userId),
+          gte(preOrders.createdAt, monday),
+          lte(preOrders.createdAt, sunday)
+        )
+      )
+      .orderBy(preOrders.createdAt);
+    return result[0];
+  }
+
+  async createPreOrder(preOrder: InsertPreOrder & { id: string }): Promise<PreOrder> {
+    const result = await db.insert(preOrders).values(preOrder).returning();
+    return result[0];
+  }
+
+  async updatePreOrderStatus(id: string, status: string, additionalFields?: Partial<PreOrder>): Promise<PreOrder | undefined> {
+    const updateData = { status, updatedAt: new Date(), ...additionalFields };
+    const result = await db.update(preOrders)
+      .set(updateData)
+      .where(eq(preOrders.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async cancelPreOrder(id: string, userId: string): Promise<PreOrder | undefined> {
+    const result = await db.update(preOrders)
+      .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(preOrders.id, id), eq(preOrders.userId, userId)))
+      .returning();
+    return result[0];
+  }
+
   // Legacy methods for backward compatibility
   async getUser(id: number): Promise<User | undefined> {
     // Convert numeric id to string and search by id
@@ -193,6 +263,7 @@ export class MemStorage implements IStorage {
   private tickets: Map<string, Ticket>;
   private membershipApplications: Map<string, MembershipApplication>;
   private inviteCodes: Map<string, InviteCode>;
+  private preOrders: Map<string, PreOrder>;
 
   constructor() {
     this.userProfiles = new Map();
@@ -200,6 +271,7 @@ export class MemStorage implements IStorage {
     this.tickets = new Map();
     this.membershipApplications = new Map();
     this.inviteCodes = new Map();
+    this.preOrders = new Map();
   }
 
   // User Profile methods
@@ -344,6 +416,91 @@ export class MemStorage implements IStorage {
     const updatedInviteCode = { ...inviteCode, isUsed: true, usedBy: userId };
     this.inviteCodes.set(inviteCode.id, updatedInviteCode);
     return updatedInviteCode;
+  }
+
+  // Pre-Order methods
+  async getAllPreOrders(): Promise<PreOrder[]> {
+    return Array.from(this.preOrders.values()).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  async getPreOrdersByEventId(eventId: string): Promise<PreOrder[]> {
+    return Array.from(this.preOrders.values())
+      .filter(preOrder => preOrder.eventId === eventId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  async getPreOrdersByUserId(userId: string): Promise<PreOrder[]> {
+    return Array.from(this.preOrders.values())
+      .filter(preOrder => preOrder.userId === userId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  async getUserWeeklyPreOrder(userId: string): Promise<PreOrder | undefined> {
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
+    monday.setHours(0, 0, 0, 0);
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    return Array.from(this.preOrders.values())
+      .find(preOrder => 
+        preOrder.userId === userId &&
+        preOrder.createdAt >= monday &&
+        preOrder.createdAt <= sunday
+      );
+  }
+
+  async createPreOrder(preOrder: InsertPreOrder & { id: string }): Promise<PreOrder> {
+    const newPreOrder: PreOrder = {
+      id: preOrder.id,
+      eventId: preOrder.eventId,
+      userId: preOrder.userId,
+      quantity: preOrder.quantity ?? 1,
+      totalPrice: preOrder.totalPrice,
+      paymentMethodId: preOrder.paymentMethodId || null,
+      stripeCustomerId: preOrder.stripeCustomerId || null,
+      status: 'pending',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      stripePaymentIntentId: null,
+      approvedAt: null,
+      paidAt: null,
+      failedAt: null,
+      cancelledAt: null,
+    };
+    this.preOrders.set(preOrder.id, newPreOrder);
+    return newPreOrder;
+  }
+
+  async updatePreOrderStatus(id: string, status: string, additionalFields?: Partial<PreOrder>): Promise<PreOrder | undefined> {
+    const preOrder = this.preOrders.get(id);
+    if (!preOrder) return undefined;
+    
+    const updatedPreOrder = { 
+      ...preOrder, 
+      status, 
+      updatedAt: new Date(),
+      ...additionalFields 
+    };
+    this.preOrders.set(id, updatedPreOrder);
+    return updatedPreOrder;
+  }
+
+  async cancelPreOrder(id: string, userId: string): Promise<PreOrder | undefined> {
+    const preOrder = this.preOrders.get(id);
+    if (!preOrder || preOrder.userId !== userId) return undefined;
+    
+    const updatedPreOrder = { 
+      ...preOrder, 
+      status: 'cancelled', 
+      cancelledAt: new Date(),
+      updatedAt: new Date() 
+    };
+    this.preOrders.set(id, updatedPreOrder);
+    return updatedPreOrder;
   }
 
   // Legacy methods for backward compatibility

@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { Star, Crown, Zap, ArrowRight, Users, Calendar, MapPin } from 'lucide-react';
+import { Star, Crown, Zap, ArrowRight, Users, Calendar, MapPin, Package } from 'lucide-react';
 import { Link } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { useEvents } from '../hooks/useEvents';
 import EventCard from '../components/EventCard';
 import TicketPurchaseModal from '../components/TicketPurchaseModal';
+import PreOrderModal from '../components/PreOrderModal';
+import PreOrderCard from '../components/PreOrderCard';
 import { Event } from '../types';
+import { useQuery } from '@tanstack/react-query';
 
 const Home: React.FC = () => {
   const { user } = useAuth();
   const { events, loading } = useEvents();
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPreOrderModalOpen, setIsPreOrderModalOpen] = useState(false);
 
   const handleBuyTicket = (event: Event) => {
     if (!user) {
@@ -23,10 +27,38 @@ const Home: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handlePreOrder = (event: Event) => {
+    if (!user) {
+      window.location.href = '/login';
+      return;
+    }
+    setSelectedEvent(event);
+    setIsPreOrderModalOpen(true);
+  };
+
   const handlePurchaseComplete = () => {
     // Refresh events to update ticket counts
     window.location.reload();
   };
+
+  const handlePreOrderComplete = () => {
+    // Refresh to update pre-order status
+    window.location.reload();
+  };
+
+  // Fetch user's weekly pre-order if they're a member
+  const { data: weeklyPreOrder } = useQuery({
+    queryKey: ['/api/pre-orders/weekly'],
+    enabled: !!user?.isMember,
+    retry: false,
+  });
+
+  // Fetch user's pre-orders if they're a member
+  const { data: userPreOrders = [] } = useQuery({
+    queryKey: ['/api/pre-orders'],
+    enabled: !!user,
+    retry: false,
+  });
 
   const liveEvents = events.filter(event => event.isLive && new Date() >= event.dropTime);
   const upcomingEvents = events.filter(event => !event.isLive || new Date() < event.dropTime);
@@ -144,6 +176,114 @@ const Home: React.FC = () => {
             </div>
           ) : (
             <>
+              {/* Harry's Club Pre-Order Section */}
+              {user?.isMember && !weeklyPreOrder && upcomingEvents.length > 0 && (
+                <div className="mb-16 animate-slideIn">
+                  <div className="bg-gradient-to-r from-purple-900/30 to-cyan-900/30 border border-purple-500/30 rounded-xl p-8">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-lg flex items-center justify-center">
+                          <Crown className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-bold text-white">Harry's Club Pre-Order</h2>
+                          <p className="text-gray-400">Reserve your tickets before the public sale</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2 bg-purple-500/20 px-4 py-2 rounded-full">
+                        <Package className="w-4 h-4 text-purple-400" />
+                        <span className="text-sm font-medium text-purple-400">1 pre-order per week</span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-cyan-400">This Week's Event</h3>
+                        <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                          {upcomingEvents[0] && (
+                            <div>
+                              <h4 className="font-semibold text-white mb-2">{upcomingEvents[0].title}</h4>
+                              <div className="space-y-2 text-sm text-gray-300">
+                                <div className="flex items-center gap-2">
+                                  <MapPin className="w-4 h-4 text-purple-400" />
+                                  <span>{upcomingEvents[0].venue}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="w-4 h-4 text-purple-400" />
+                                  <span>{new Date(upcomingEvents[0].date).toLocaleDateString()}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Star className="w-4 h-4 text-cyan-400" />
+                                  <span>Member Price: £{upcomingEvents[0].memberPrice}</span>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handlePreOrder(upcomingEvents[0])}
+                                className="w-full mt-4 bg-gradient-to-r from-purple-500 to-cyan-500 text-white py-3 px-4 rounded-lg font-medium hover:from-purple-600 hover:to-cyan-600 transition-all"
+                              >
+                                Place Pre-Order
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-cyan-400">Benefits</h3>
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <div className="w-2 h-2 bg-purple-400 rounded-full mt-2"></div>
+                            <div>
+                              <p className="text-white font-medium">Priority Access</p>
+                              <p className="text-gray-400 text-sm">Get tickets before public sale opens</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full mt-2"></div>
+                            <div>
+                              <p className="text-white font-medium">Member Pricing</p>
+                              <p className="text-gray-400 text-sm">Exclusive discounted rates for all events</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <div className="w-2 h-2 bg-purple-400 rounded-full mt-2"></div>
+                            <div>
+                              <p className="text-white font-medium">Guaranteed Tickets</p>
+                              <p className="text-gray-400 text-sm">Reserve your spot even for sold-out events</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* User's Pre-Orders */}
+              {user && userPreOrders.length > 0 && (
+                <div className="mb-16 animate-slideIn">
+                  <div className="flex items-center space-x-3 mb-8">
+                    <div className="w-3 h-3 bg-purple-500 rounded-full pulse"></div>
+                    <h2 className="text-3xl font-bold text-purple-400">Your Pre-Orders</h2>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {userPreOrders.map((preOrder) => {
+                      const event = events.find(e => e.id === preOrder.eventId);
+                      return (
+                        <PreOrderCard
+                          key={preOrder.id}
+                          preOrder={preOrder}
+                          eventTitle={event?.title}
+                          eventDate={event ? new Date(event.date) : undefined}
+                          eventTime={event?.time}
+                          eventVenue={event?.venue}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Live Events */}
               {liveEvents.length > 0 && (
                 <div className="mb-16 animate-slideIn">
@@ -158,6 +298,7 @@ const Home: React.FC = () => {
                         key={event.id}
                         event={event}
                         onBuyTicket={handleBuyTicket}
+                        onPreOrder={handlePreOrder}
                       />
                     ))}
                   </div>
@@ -178,6 +319,7 @@ const Home: React.FC = () => {
                         key={event.id}
                         event={event}
                         onBuyTicket={handleBuyTicket}
+                        onPreOrder={handlePreOrder}
                       />
                     ))}
                   </div>
@@ -229,6 +371,13 @@ const Home: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onPurchaseComplete={handlePurchaseComplete}
+      />
+
+      <PreOrderModal
+        event={selectedEvent}
+        isOpen={isPreOrderModalOpen}
+        onClose={() => setIsPreOrderModalOpen(false)}
+        onPreOrderComplete={handlePreOrderComplete}
       />
     </div>
   );
