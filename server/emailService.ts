@@ -3,10 +3,9 @@ import type { Ticket, Event, UserProfile } from '@shared/schema';
 
 // Email configuration
 const createTransporter = () => {
-  // For development, use a test service like Ethereal or configure with real SMTP
+  // For development, use console logging instead of actual email sending
   if (process.env.NODE_ENV === 'development') {
-    // Use console logging for development
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
       streamTransport: true,
       newline: 'unix',
       buffer: true
@@ -14,7 +13,7 @@ const createTransporter = () => {
   }
   
   // Production email configuration (requires SMTP settings)
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587'),
     secure: false,
