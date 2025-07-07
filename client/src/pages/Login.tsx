@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import AuthForm from '../components/AuthForm';
 
 const Login: React.FC = () => {
   const { login, isLoading } = useAuth();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const [error, setError] = useState('');
 
   const handleLogin = async (data: { email: string; password: string }) => {
     try {
       setError('');
       await login(data.email, data.password);
-      navigate('/');
+      setLocation('/');
     } catch (err) {
       setError('Invalid email or password');
     }

@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import AuthForm from '../components/AuthForm';
 
 const Signup: React.FC = () => {
   const { signup, isLoading } = useAuth();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const [error, setError] = useState('');
 
   const handleSignup = async (data: { email: string; password: string; name?: string }) => {
     try {
       setError('');
       await signup(data.email, data.password, data.name || '');
-      navigate('/');
+      setLocation('/');
     } catch (err) {
       setError('Failed to create account');
     }

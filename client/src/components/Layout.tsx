@@ -1,13 +1,13 @@
 import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'wouter';
 import { Home, User, Settings, LogOut, Crown, Ticket } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-const Layout: React.FC = () => {
+const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
-  const location = useLocation();
+  const [location] = useLocation();
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => location === path;
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -89,7 +89,7 @@ const Layout: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1">
-        <Outlet />
+        {children}
       </main>
 
       {/* Footer */}

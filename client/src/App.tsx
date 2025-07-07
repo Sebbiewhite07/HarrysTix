@@ -1,5 +1,4 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Router, Route } from 'wouter';
 import { AuthProvider } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import Home from './pages/Home';
@@ -12,15 +11,13 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Home />} />
-            <Route path="login" element={<Login />} />
-            <Route path="signup" element={<Signup />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="admin" element={<Admin />} />
-          </Route>
-        </Routes>
+        <Layout>
+          <Route path="/" component={Home} />
+          <Route path="/login" component={Login} />
+          <Route path="/signup" component={Signup} />
+          <Route path="/dashboard" component={Dashboard} />
+          <Route path="/admin" component={Admin} />
+        </Layout>
       </Router>
     </AuthProvider>
   );
