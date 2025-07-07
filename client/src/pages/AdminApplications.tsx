@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileText, Check, X, Clock, User, Calendar, MessageSquare } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '../hooks/use-toast';
+import { apiRequest } from '../lib/queryClient';
 
 interface MembershipApplication {
   id: string;
