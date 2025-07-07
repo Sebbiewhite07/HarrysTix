@@ -7,6 +7,7 @@ import EventCard from '../components/EventCard';
 import TicketPurchaseModal from '../components/TicketPurchaseModal';
 import PreOrderModal from '../components/PreOrderModal';
 import PreOrderCard from '../components/PreOrderCard';
+import MembershipApplicationModal from '../components/MembershipApplicationModal';
 import { Event } from '../types';
 import { useQuery } from '@tanstack/react-query';
 
@@ -16,6 +17,7 @@ const Home: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPreOrderModalOpen, setIsPreOrderModalOpen] = useState(false);
+  const [isMembershipModalOpen, setIsMembershipModalOpen] = useState(false);
 
   const handleBuyTicket = (event: Event) => {
     if (!user) {
@@ -43,6 +45,12 @@ const Home: React.FC = () => {
 
   const handlePreOrderComplete = () => {
     // Refresh to update pre-order status
+    window.location.reload();
+  };
+
+  const handleMembershipApplicationComplete = () => {
+    setIsMembershipModalOpen(false);
+    // Refresh to update user status
     window.location.reload();
   };
 
@@ -123,7 +131,10 @@ const Home: React.FC = () => {
                 <p className="text-gray-300 mb-4">
                   Get early access, member prices, and exclusive events
                 </p>
-                <button className="button-neon w-full pulse">
+                <button 
+                  className="button-neon w-full pulse"
+                  onClick={() => setIsMembershipModalOpen(true)}
+                >
                   Apply Now 👑
                 </button>
               </div>
@@ -410,6 +421,12 @@ const Home: React.FC = () => {
         isOpen={isPreOrderModalOpen}
         onClose={() => setIsPreOrderModalOpen(false)}
         onPreOrderComplete={handlePreOrderComplete}
+      />
+      
+      <MembershipApplicationModal
+        isOpen={isMembershipModalOpen}
+        onClose={() => setIsMembershipModalOpen(false)}
+        onApplicationComplete={handleMembershipApplicationComplete}
       />
     </div>
   );
