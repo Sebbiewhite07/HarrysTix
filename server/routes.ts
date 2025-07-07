@@ -419,55 +419,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Membership application routes
-  app.get('/api/membership-applications', requireAuth, requireAdmin, async (req, res) => {
-    try {
-      const applications = await storage.getAllMembershipApplications();
-      res.json(applications);
-    } catch (error) {
-      console.error('Get applications error:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  app.post('/api/membership-applications', async (req, res) => {
-    try {
-      const applicationData = insertMembershipApplicationSchema.parse(req.body);
-      const applicationId = randomUUID();
-      
-      const application = await storage.createMembershipApplication({
-        id: applicationId,
-        ...applicationData,
-      });
-      
-      res.json(application);
-    } catch (error) {
-      console.error('Create application error:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  app.patch('/api/membership-applications/:id', requireAuth, requireAdmin, async (req, res) => {
-    try {
-      const { status, inviteCode } = req.body;
-      
-      const application = await storage.updateMembershipApplicationStatus(
-        req.params.id,
-        status,
-        inviteCode
-      );
-      
-      if (!application) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-      
-      res.json(application);
-    } catch (error) {
-      console.error('Update application error:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
   // Invite code routes
   app.post('/api/invite-codes', requireAuth, requireAdmin, async (req, res) => {
     try {
