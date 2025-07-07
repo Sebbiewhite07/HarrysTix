@@ -328,10 +328,15 @@ export default function AdminPreOrderManagement() {
                     <p className="text-gray-400">Payment & Status</p>
                     <p className="text-white font-medium">£{preOrder.totalPrice}</p>
                     <p className="text-xs text-gray-400 mt-1">{getStatusDescription(preOrder.status)}</p>
-                    {preOrder.stripeCustomerId && (
-                      <div className="flex items-center gap-1 text-gray-300 text-xs mt-1">
+                    {preOrder.stripeCustomerId && preOrder.paymentMethodId ? (
+                      <div className="flex items-center gap-1 text-green-400 text-xs mt-1">
                         <CreditCard className="w-3 h-3" />
-                        <span>Payment method saved</span>
+                        <span>Payment method ready</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-red-400 text-xs mt-1">
+                        <XCircle className="w-3 h-3" />
+                        <span>Missing payment setup</span>
                       </div>
                     )}
                     {preOrder.stripePaymentIntentId && (
@@ -366,14 +371,32 @@ export default function AdminPreOrderManagement() {
                   )}
                   
                   {preOrder.status === 'approved' && (
-                    <button
-                      onClick={() => fulfillMutation.mutate([preOrder.id])}
-                      disabled={fulfillMutation.isPending}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      Process Payment
-                    </button>
+                    <>
+                      {preOrder.stripeCustomerId && preOrder.paymentMethodId ? (
+                        <button
+                          onClick={() => fulfillMutation.mutate([preOrder.id])}
+                          disabled={fulfillMutation.isPending}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                        >
+                          {fulfillMutation.isPending ? (
+                            <>
+                              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <CreditCard className="w-4 h-4" />
+                              Process Payment
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="bg-gray-600/50 text-gray-400 px-3 py-2 rounded-lg text-sm flex items-center gap-1">
+                          <XCircle className="w-4 h-4" />
+                          Cannot Process - Missing Payment Info
+                        </div>
+                      )}
+                    </>
                   )}
                   
                   {preOrder.status === 'processing' && (
