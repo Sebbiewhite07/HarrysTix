@@ -148,31 +148,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateMembershipApplicationStatus(id: string, status: 'approved' | 'rejected', inviteCode?: string): Promise<MembershipApplication | undefined> {
-    const updateData: any = { status, updatedAt: new Date() };
-    if (inviteCode) {
-      updateData.inviteCode = inviteCode;
-    }
-
     const result = await db.update(membershipApplications)
-      .set(updateData)
+      .set({ status, inviteCode })
       .where(eq(membershipApplications.id, id))
       .returning();
-      
-    // If approved, automatically grant membership to the user
-    if (status === 'approved' && result[0]) {
-      const application = result[0];
-      const membershipExpiry = new Date();
-      membershipExpiry.setFullYear(membershipExpiry.getFullYear() + 1); // 1 year membership
-      
-      await db.update(userProfiles)
-        .set({ 
-          isMember: true, 
-          membershipExpiry: membershipExpiry,
-          updatedAt: new Date() 
-        })
-        .where(eq(userProfiles.id, application.userId));
-    }
-    
     return result[0];
   }
 
