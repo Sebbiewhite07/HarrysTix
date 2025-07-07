@@ -45,7 +45,7 @@ const TicketPurchaseModal: React.FC<TicketPurchaseModalProps> = ({
         body: JSON.stringify({
           eventId: event.id,
           quantity,
-          price: unitPrice,
+          totalPrice: totalPrice,
         }),
       });
 

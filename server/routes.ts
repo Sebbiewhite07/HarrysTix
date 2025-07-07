@@ -411,16 +411,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/tickets', requireAuth, async (req, res) => {
     try {
-      const ticketData = insertTicketSchema.parse(req.body);
-      const ticketId = randomUUID();
+      const { eventId, quantity, totalPrice } = req.body;
       
-      // Generate confirmation code
+      // Validate required fields manually
+      if (!eventId || !quantity || !totalPrice) {
+        return res.status(400).json({ 
+          error: "Missing required fields", 
+          required: ["eventId", "quantity", "totalPrice"] 
+        });
+      }
+      
+      const ticketId = randomUUID();
       const confirmationCode = `HTX-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
       
       const ticket = await storage.createTicket({
         id: ticketId,
-        ...ticketData,
+        eventId: eventId,
         userId: req.user.id,
+        quantity: parseInt(quantity),
+        totalPrice: totalPrice.toString(),
         confirmationCode,
       });
       
@@ -501,14 +510,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Only Harry's Club members can place pre-orders" });
       }
 
+      const { eventId, quantity, paymentMethodId } = req.body;
+      
       // Check if user already has a pre-order for this specific event
       const existingEventPreOrder = await storage.getPreOrdersByUserId(req.user.id);
       const hasPreOrderForEvent = existingEventPreOrder.some(po => po.eventId === eventId);
       if (hasPreOrderForEvent) {
         return res.status(400).json({ error: "You already have a pre-order for this event" });
       }
-
-      const { eventId, quantity, paymentMethodId } = req.body;
       
       if (!eventId || !quantity || quantity <= 0 || !paymentMethodId) {
         return res.status(400).json({ error: "Invalid pre-order data" });
