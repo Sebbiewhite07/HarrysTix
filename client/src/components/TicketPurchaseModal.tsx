@@ -36,7 +36,7 @@ const TicketPurchaseModal: React.FC<TicketPurchaseModalProps> = ({
     setError('');
 
     try {
-      const response = await fetch('/api/tickets/purchase', {
+      const response = await fetch('/api/tickets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -45,6 +45,7 @@ const TicketPurchaseModal: React.FC<TicketPurchaseModalProps> = ({
         body: JSON.stringify({
           eventId: event.id,
           quantity,
+          price: unitPrice,
         }),
       });
 

@@ -22,7 +22,7 @@ const Dashboard: React.FC = () => {
       // Fetch user tickets
       const fetchTickets = async () => {
         try {
-          const response = await fetch('/api/tickets/my', {
+          const response = await fetch('/api/tickets', {
             credentials: 'include',
           });
           if (response.ok) {
@@ -152,15 +152,15 @@ const Dashboard: React.FC = () => {
                 <h2 className="text-2xl font-bold text-neon-cyan">Your Tickets</h2>
               </div>
               
-              {mockTickets.length > 0 ? (
+              {tickets.length > 0 ? (
                 <div className="space-y-4">
-                  {mockTickets.map((ticket) => (
+                  {tickets.map((ticket) => (
                     <div
                       key={ticket.id}
                       className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:border-purple-500/50 transition-all duration-200 ticket-glow"
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-lg font-semibold text-neon-cyan">{ticket.event}</h3>
+                        <h3 className="text-lg font-semibold text-neon-cyan">{ticket.event?.title || 'Event'}</h3>
                         <div className="text-right">
                           <div className="text-sm text-gray-400">£{ticket.price}</div>
                           <div className="text-xs text-green-400 pulse">Confirmed</div>
@@ -169,14 +169,14 @@ const Dashboard: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                         <div className="flex items-center space-x-2 text-gray-300">
                           <Calendar className="w-4 h-4 text-neon-purple" />
-                          <span>{ticket.date}</span>
+                          <span>{ticket.event?.date ? new Date(ticket.event.date).toLocaleDateString() : 'TBD'}</span>
                         </div>
                         <div className="flex items-center space-x-2 text-gray-300">
                           <Clock className="w-4 h-4 text-neon-purple" />
-                          <span>{ticket.time}</span>
+                          <span>{ticket.event?.time || 'TBD'}</span>
                         </div>
                         <div className="flex items-center space-x-2 text-gray-300">
-                          <span className="text-neon-purple">{ticket.venue}</span>
+                          <span className="text-neon-purple">{ticket.event?.venue || 'TBD'}</span>
                         </div>
                       </div>
                       <div className="mt-3 pt-3 border-t border-gray-700">
