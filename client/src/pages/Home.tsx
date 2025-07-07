@@ -1,19 +1,31 @@
 import React, { useState } from 'react';
 import { Star, Crown, Zap, ArrowRight, Users, Calendar, MapPin } from 'lucide-react';
+import { Link } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { useEvents } from '../hooks/useEvents';
 import EventCard from '../components/EventCard';
+import TicketPurchaseModal from '../components/TicketPurchaseModal';
 import { Event } from '../types';
 
 const Home: React.FC = () => {
   const { user } = useAuth();
   const { events, loading } = useEvents();
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleBuyTicket = (event: Event) => {
+    if (!user) {
+      // Redirect to login if not authenticated
+      window.location.href = '/login';
+      return;
+    }
     setSelectedEvent(event);
-    // Here you would typically open a checkout modal or navigate to checkout
-    console.log('Buying ticket for:', event.title);
+    setIsModalOpen(true);
+  };
+
+  const handlePurchaseComplete = () => {
+    // Refresh events to update ticket counts
+    window.location.reload();
   };
 
   const liveEvents = events.filter(event => event.isLive && new Date() >= event.dropTime);
@@ -48,12 +60,12 @@ const Home: React.FC = () => {
 
             {!user ? (
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <button className="button-neon pulse">
-                  Get Started 🎟️
-                </button>
-                <button className="border-neon-animated text-neon-cyan px-8 py-4 rounded-lg font-medium hover:bg-purple-500/10 transition-all duration-200">
-                  Learn More
-                </button>
+                <Link href="/signup" className="bg-gradient-to-r from-purple-500 to-cyan-500 text-white px-8 py-4 rounded-lg font-bold text-lg hover:from-purple-600 hover:to-cyan-600 transition-all duration-200 shadow-lg hover:shadow-purple-500/25 transform hover:scale-105">
+                  Join the Club
+                </Link>
+                <Link href="/login" className="border border-purple-500/50 text-purple-300 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-purple-500/10 hover:border-purple-400 transition-all duration-200">
+                  Sign In
+                </Link>
               </div>
             ) : !user.isMember ? (
               <div className="bg-neon-gradient-dark p-6 rounded-2xl border border-purple-500/30 max-w-md mx-auto card-neon-hover">
@@ -210,6 +222,14 @@ const Home: React.FC = () => {
           </div>
         </section>
       )}
+
+      {/* Ticket Purchase Modal */}
+      <TicketPurchaseModal
+        event={selectedEvent}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onPurchaseComplete={handlePurchaseComplete}
+      />
     </div>
   );
 };

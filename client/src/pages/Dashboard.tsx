@@ -1,34 +1,56 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Calendar, Clock, Crown, Ticket, Users, Star, Gift, Mail } from 'lucide-react';
+import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
+import { Ticket as TicketType } from '../types';
 
 const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  const [tickets, setTickets] = useState<(TicketType & { event: any })[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      setLocation('/login');
+      return;
+    }
+  }, [user, isLoading, setLocation]);
+
+  useEffect(() => {
+    if (user) {
+      // Fetch user tickets
+      const fetchTickets = async () => {
+        try {
+          const response = await fetch('/api/tickets/my', {
+            credentials: 'include',
+          });
+          if (response.ok) {
+            const ticketsData = await response.json();
+            setTickets(ticketsData);
+          }
+        } catch (error) {
+          console.error('Failed to fetch tickets:', error);
+        } finally {
+          setTicketsLoading(false);
+        }
+      };
+
+      fetchTickets();
+    }
+  }, [user]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
 
   if (!user) return null;
 
-  const mockTickets = [
-    {
-      id: '1',
-      event: 'Warehouse Rave',
-      venue: 'Ministry of Sound',
-      date: '2024-01-15',
-      time: '22:00',
-      price: 15,
-      confirmationCode: 'HTX-WAR-2024',
-      status: 'confirmed'
-    },
-    {
-      id: '2',
-      event: 'Freshers Finale',
-      venue: 'Fabric',
-      date: '2024-01-20',
-      time: '23:00',
-      price: 20,
-      confirmationCode: 'HTX-FIN-2024',
-      status: 'confirmed'
-    }
-  ];
+  // Remove mock tickets as we'll use real data from API
 
   const membershipDaysLeft = user.membershipExpiry 
     ? Math.ceil((user.membershipExpiry.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))

@@ -1,10 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Users, Calendar, Settings, BarChart3, Crown, Mail, Edit, Trash2, Eye } from 'lucide-react';
+import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
+import { Event } from '../types';
 
 const Admin: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('events');
+  const [events, setEvents] = useState<Event[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isLoading && (!user || !user.isAdmin)) {
+      setLocation('/');
+      return;
+    }
+  }, [user, isLoading, setLocation]);
+
+  useEffect(() => {
+    if (user?.isAdmin) {
+      // Fetch events for admin
+      const fetchEvents = async () => {
+        try {
+          const response = await fetch('/api/events', {
+            credentials: 'include',
+          });
+          if (response.ok) {
+            const eventsData = await response.json();
+            const processedEvents = eventsData.map((event: any) => ({
+              ...event,
+              date: new Date(event.date),
+              dropTime: new Date(event.dropTime),
+              publicPrice: parseFloat(event.publicPrice),
+              memberPrice: parseFloat(event.memberPrice),
+            }));
+            setEvents(processedEvents);
+          }
+        } catch (error) {
+          console.error('Failed to fetch events:', error);
+        } finally {
+          setEventsLoading(false);
+        }
+      };
+
+      fetchEvents();
+    }
+  }, [user]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
 
   if (!user?.isAdmin) {
     return (
