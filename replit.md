@@ -11,7 +11,7 @@ The application follows a full-stack monorepo architecture with clear separation
 - **Frontend**: React with TypeScript, using Vite for development and bundling
 - **Backend**: Express.js server with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM for type-safe database operations
-- **Authentication**: Supabase Auth integration
+- **Authentication**: Custom session-based authentication
 - **Styling**: Tailwind CSS with custom neon theme and shadcn/ui components
 - **State Management**: React Context API with custom hooks
 
@@ -19,7 +19,7 @@ The application follows a full-stack monorepo architecture with clear separation
 
 ### Frontend Architecture
 - **React Router**: Client-side routing for SPA navigation
-- **Authentication Context**: Centralized auth state management with Supabase integration
+- **Authentication Context**: Centralized auth state management with custom API integration
 - **Component Library**: shadcn/ui components with custom neon styling
 - **TypeScript**: Full type safety across the frontend
 - **Responsive Design**: Mobile-first approach with Tailwind CSS
@@ -43,7 +43,7 @@ The application follows a full-stack monorepo architecture with clear separation
 
 ## Data Flow
 
-1. **User Authentication**: Supabase handles auth, with user profiles stored in custom database tables
+1. **User Authentication**: Custom session-based auth with user profiles stored in PostgreSQL database
 2. **Event Management**: Events are managed through the admin interface with real-time availability tracking
 3. **Ticket Purchasing**: Multi-tier pricing system with member discounts and purchase limits
 4. **State Management**: React Context provides global state for authentication and user data
@@ -53,7 +53,7 @@ The application follows a full-stack monorepo architecture with clear separation
 ### Core Dependencies
 - **@neondatabase/serverless**: PostgreSQL connection for Neon database
 - **drizzle-orm**: Type-safe ORM for database operations
-- **@supabase/supabase-js**: Authentication and user management
+- **express-session**: Secure session-based authentication
 - **@tanstack/react-query**: Server state management and caching
 - **@radix-ui/***: Accessible UI component primitives
 
@@ -65,7 +65,7 @@ The application follows a full-stack monorepo architecture with clear separation
 
 ### Integrations
 - **Neon Database**: Serverless PostgreSQL hosting
-- **Supabase**: Authentication backend and user management
+- **Custom Auth**: Session-based authentication with PostgreSQL storage
 - **Replit**: Development environment with cartographer integration
 
 ## Deployment Strategy
