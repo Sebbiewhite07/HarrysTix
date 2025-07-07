@@ -86,6 +86,12 @@ const Home: React.FC = () => {
   const liveEvents = events.filter(event => event.status === 'live');
   const preOrderEvents = events.filter(event => event.status === 'pre-order');
   const upcomingEvents = events.filter(event => event.status === 'draft');
+  
+  // Debug logging
+  console.log('User:', user);
+  console.log('User isMember:', user?.isMember);
+  console.log('Pre-order events:', preOrderEvents.length);
+  console.log('Events:', events.map(e => ({ title: e.title, status: e.status })));
 
   return (
     <div className="min-h-screen bg-black text-white">
