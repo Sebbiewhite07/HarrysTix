@@ -282,7 +282,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/events', requireAuth, requireAdmin, async (req, res) => {
     try {
-      const eventData = insertEventSchema.parse(req.body);
+      // Manual transformation for now to handle validation
+      const eventData = {
+        title: req.body.title,
+        venue: req.body.venue,
+        date: new Date(req.body.date),
+        time: req.body.time,
+        publicPrice: req.body.publicPrice.toString(),
+        memberPrice: req.body.memberPrice.toString(),
+        maxTickets: req.body.maxTickets,
+        soldTickets: req.body.soldTickets || 0,
+        maxPerUser: req.body.maxPerUser,
+        memberMaxPerUser: req.body.memberMaxPerUser,
+        dropTime: new Date(req.body.dropTime),
+        isLive: req.body.isLive,
+        imageUrl: req.body.imageUrl || null,
+        description: req.body.description || null,
+      };
+      
       const eventId = crypto.randomUUID();
       
       const event = await storage.createEvent({
@@ -302,6 +319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id: eventId } = req.params;
       const { tickets } = req.body; // Array of email:password strings
+      const currentUserId = req.user.id; // Use the authenticated user's ID
       
       if (!Array.isArray(tickets)) {
         return res.status(400).json({ error: 'Tickets must be an array' });
@@ -334,9 +352,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const ticket = await storage.createTicket({
           id: crypto.randomUUID(),
           eventId,
-          userId: `ticket-${ticketData.email}`, // Special user ID for uploaded tickets
+          userId: currentUserId, // Use admin user who uploaded the tickets
           quantity: 1,
-          totalPrice: 0, // Admin uploaded tickets are free
+          totalPrice: '0', // Admin uploaded tickets are free
           confirmationCode: `HTX-${event.title.substring(0, 3).toUpperCase()}-${Date.now()}`,
           status: 'confirmed',
           ticketCredentials: `${ticketData.email}:${ticketData.password}` // Store credentials

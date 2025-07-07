@@ -89,12 +89,18 @@ export const insertEventSchema = createInsertSchema(events).pick({
   publicPrice: true,
   memberPrice: true,
   maxTickets: true,
+  soldTickets: true,
   maxPerUser: true,
   memberMaxPerUser: true,
   dropTime: true,
   isLive: true,
   imageUrl: true,
   description: true,
+}).extend({
+  date: z.string().transform((val) => new Date(val)),
+  dropTime: z.string().transform((val) => new Date(val)),
+  publicPrice: z.number().transform((val) => val.toString()),
+  memberPrice: z.number().transform((val) => val.toString()),
 });
 
 export const insertTicketSchema = createInsertSchema(tickets).pick({
