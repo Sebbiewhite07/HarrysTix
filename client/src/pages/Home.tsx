@@ -177,7 +177,7 @@ const Home: React.FC = () => {
           ) : (
             <>
               {/* Harry's Club Pre-Order Section */}
-              {user?.isMember && !weeklyPreOrder && upcomingEvents.length > 0 && (
+              {user?.isMember && upcomingEvents.length > 0 && (
                 <div className="mb-16 animate-slideIn">
                   <div className="bg-gradient-to-r from-purple-900/30 to-cyan-900/30 border border-purple-500/30 rounded-xl p-8">
                     <div className="flex items-center justify-between mb-6">
@@ -217,12 +217,29 @@ const Home: React.FC = () => {
                                   <span>Member Price: £{upcomingEvents[0].memberPrice}</span>
                                 </div>
                               </div>
-                              <button
-                                onClick={() => handlePreOrder(upcomingEvents[0])}
-                                className="w-full mt-4 bg-gradient-to-r from-purple-500 to-cyan-500 text-white py-3 px-4 rounded-lg font-medium hover:from-purple-600 hover:to-cyan-600 transition-all"
-                              >
-                                Place Pre-Order
-                              </button>
+                              {weeklyPreOrder ? (
+                                <div className="w-full mt-4 bg-purple-900/30 border border-purple-500/50 rounded-lg p-3">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="text-sm font-medium text-purple-400">Pre-Order Active</p>
+                                      <p className="text-xs text-gray-400">
+                                        Status: <span className="capitalize text-purple-300">{weeklyPreOrder.status}</span>
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-sm font-medium text-white">{weeklyPreOrder.quantity} ticket(s)</p>
+                                      <p className="text-xs text-gray-400">£{weeklyPreOrder.totalPrice}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handlePreOrder(upcomingEvents[0])}
+                                  className="w-full mt-4 bg-gradient-to-r from-purple-500 to-cyan-500 text-white py-3 px-4 rounded-lg font-medium hover:from-purple-600 hover:to-cyan-600 transition-all"
+                                >
+                                  Place Pre-Order
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
