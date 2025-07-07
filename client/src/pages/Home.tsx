@@ -87,11 +87,7 @@ const Home: React.FC = () => {
   const preOrderEvents = events.filter(event => event.status === 'pre-order');
   const upcomingEvents = events.filter(event => event.status === 'draft');
   
-  // Debug logging
-  console.log('User:', user);
-  console.log('User isMember:', user?.isMember);
-  console.log('Pre-order events:', preOrderEvents.length);
-  console.log('Events:', events.map(e => ({ title: e.title, status: e.status })));
+
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -233,21 +229,21 @@ const Home: React.FC = () => {
                       <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-cyan-400">This Week's Event</h3>
                         <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                          {upcomingEvents[0] && (
+                          {preOrderEvents[0] && (
                             <div>
-                              <h4 className="font-semibold text-white mb-2">{upcomingEvents[0].title}</h4>
+                              <h4 className="font-semibold text-white mb-2">{preOrderEvents[0].title}</h4>
                               <div className="space-y-2 text-sm text-gray-300">
                                 <div className="flex items-center gap-2">
                                   <MapPin className="w-4 h-4 text-purple-400" />
-                                  <span>{upcomingEvents[0].venue}</span>
+                                  <span>{preOrderEvents[0].venue}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Calendar className="w-4 h-4 text-purple-400" />
-                                  <span>{new Date(upcomingEvents[0].date).toLocaleDateString()}</span>
+                                  <span>{new Date(preOrderEvents[0].date).toLocaleDateString()}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Star className="w-4 h-4 text-cyan-400" />
-                                  <span>Member Price: £{upcomingEvents[0].memberPrice}</span>
+                                  <span>Member Price: £{preOrderEvents[0].memberPrice}</span>
                                 </div>
                               </div>
                               {activeWeeklyPreOrder ? (
