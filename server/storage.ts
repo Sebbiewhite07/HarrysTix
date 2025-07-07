@@ -240,6 +240,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async cancelPreOrder(id: string, userId: string): Promise<PreOrder | undefined> {
+    // First check if the pre-order exists and belongs to the user
+    const existingPreOrder = await db.select().from(preOrders)
+      .where(and(eq(preOrders.id, id), eq(preOrders.userId, userId)))
+      .limit(1);
+    
+    if (existingPreOrder.length === 0) {
+      return undefined;
+    }
+
     const result = await db.update(preOrders)
       .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })
       .where(and(eq(preOrders.id, id), eq(preOrders.userId, userId)))
