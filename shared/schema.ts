@@ -54,6 +54,7 @@ export const tickets = pgTable("tickets", {
 // Membership applications table
 export const membershipApplications = pgTable("membership_applications", {
   id: uuid("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => userProfiles.id),
   email: text("email").notNull(),
   name: text("name").notNull(),
   university: text("university").notNull(),

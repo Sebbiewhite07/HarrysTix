@@ -631,6 +631,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Application not found" });
       }
 
+      // If approved, grant membership to the user
+      if (status === 'approved' && application.userId) {
+        const membershipExpiry = new Date();
+        membershipExpiry.setFullYear(membershipExpiry.getFullYear() + 1); // 1 year membership
+        
+        await storage.updateUserProfile(application.userId, {
+          isMember: true,
+          membershipExpiry: membershipExpiry
+        });
+      }
+
       res.json(application);
     } catch (error) {
       console.error("Error updating membership application:", error);
