@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 import session from "express-session";
 import { randomUUID } from "crypto";
 import { processWeeklyPreOrders } from './scheduler';
+import { sendTicketConfirmationEmail, sendPreOrderConfirmationEmail } from "./emailService";
 import { 
   insertUserProfileSchema, 
   insertEventSchema, 
@@ -433,6 +434,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalPrice: totalPrice.toString(),
         confirmationCode,
       });
+
+      // Send ticket confirmation email
+      try {
+        const user = await storage.getUserProfile(req.user.id);
+        const event = await storage.getEvent(eventId);
+        
+        if (user && event) {
+          const emailResult = await sendTicketConfirmationEmail(user, ticket, event);
+          if (emailResult.success) {
+            console.log(`✅ Ticket email sent to ${user.email} for ${ticket.confirmationCode}`);
+          }
+        }
+      } catch (emailError) {
+        console.error(`Error sending ticket email:`, emailError);
+      }
       
       res.json(ticket);
     } catch (error) {
@@ -572,6 +588,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentMethodId,
         stripeCustomerId,
       });
+
+      // Send pre-order confirmation email
+      try {
+        const event = await storage.getEvent(eventId);
+        if (event) {
+          const emailResult = await sendPreOrderConfirmationEmail(user, event, preOrderId);
+          if (emailResult.success) {
+            console.log(`✅ Pre-order confirmation email sent to ${user.email}`);
+          }
+        }
+      } catch (emailError) {
+        console.error(`Error sending pre-order confirmation email:`, emailError);
+      }
 
       res.json(preOrder);
     } catch (error) {
@@ -804,6 +833,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
 
               console.log(`Ticket created for pre-order ${preOrderId}: ${confirmationCode}`);
+              
+              // Send email notification to user
+              try {
+                const user = await storage.getUserProfile(preOrder.userId);
+                const event = await storage.getEvent(preOrder.eventId);
+                
+                if (user && event) {
+                  const emailResult = await sendTicketConfirmationEmail(user, {
+                    id: ticketId,
+                    eventId: preOrder.eventId,
+                    userId: preOrder.userId,
+                    quantity: preOrder.quantity,
+                    totalPrice: preOrder.totalPrice,
+                    confirmationCode,
+                    status: 'confirmed',
+                    purchaseDate: new Date(),
+                  }, event);
+                  
+                  if (emailResult.success) {
+                    console.log(`✅ Ticket email sent to ${user.email} for ${confirmationCode}`);
+                  } else {
+                    console.error(`❌ Failed to send ticket email: ${emailResult.error}`);
+                  }
+                }
+              } catch (emailError) {
+                console.error(`Error sending ticket email for ${preOrderId}:`, emailError);
+              }
             }
           } catch (error) {
             console.error(`Error processing successful payment for pre-order ${preOrderId}:`, error);
