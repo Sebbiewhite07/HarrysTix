@@ -133,9 +133,10 @@ Harry's Tix - Premium Student Events in London
     };
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('📧 Email would be sent to:', user.email);
+      console.log('📧 Ticket email would be sent to:', user.email);
       console.log('Subject:', mailOptions.subject);
       console.log('Confirmation Code:', ticket.confirmationCode);
+      console.log('Event:', event.title);
       return { success: true, messageId: 'dev-mode' };
     }
 

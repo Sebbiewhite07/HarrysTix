@@ -97,6 +97,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **Individual Stripe Payment System for Tickets** (July 07, 2025): Added direct payment functionality for instant ticket purchases:
+  - New Stripe payment intent endpoint for individual ticket purchases
+  - TicketPaymentModal component with complete Stripe Elements integration
+  - Real-time price calculation based on member vs. public pricing
+  - Webhook handling for direct ticket payments separate from pre-orders
+  - Automatic ticket creation and email delivery after successful payments
+  - Professional payment flow with loading states and error handling
+
 - **Email Notification System** (July 07, 2025): Implemented comprehensive email delivery for tickets:
   - Automatic ticket confirmation emails sent when payments are confirmed via Stripe webhook
   - Pre-order confirmation emails sent when users place pre-orders

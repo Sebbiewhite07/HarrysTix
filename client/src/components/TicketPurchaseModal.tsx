@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Crown, Ticket, CreditCard, Minus, Plus } from 'lucide-react';
 import { Event } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import TicketPaymentModal from './TicketPaymentModal';
 
 interface TicketPurchaseModalProps {
   event: Event | null;
@@ -18,8 +19,7 @@ const TicketPurchaseModal: React.FC<TicketPurchaseModalProps> = ({
 }) => {
   const { user } = useAuth();
   const [quantity, setQuantity] = useState(1);
-  const [isLoading, setPurchasing] = useState(false);
-  const [error, setError] = useState('');
+  const [showPayment, setShowPayment] = useState(false);
 
   if (!isOpen || !event) return null;
 
@@ -29,38 +29,14 @@ const TicketPurchaseModal: React.FC<TicketPurchaseModalProps> = ({
   const ticketsLeft = event.maxTickets - event.soldTickets;
   const maxQuantity = Math.min(maxAllowed, ticketsLeft);
 
-  const handlePurchase = async () => {
-    if (!user) return;
-    
-    setPurchasing(true);
-    setError('');
+  const handlePurchase = () => {
+    setShowPayment(true);
+  };
 
-    try {
-      const response = await fetch('/api/tickets', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          eventId: event.id,
-          quantity,
-          totalPrice: totalPrice,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Purchase failed');
-      }
-
-      onPurchaseComplete();
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Purchase failed');
-    } finally {
-      setPurchasing(false);
-    }
+  const handlePaymentComplete = () => {
+    setShowPayment(false);
+    onPurchaseComplete();
+    onClose();
   };
 
   return (
@@ -154,26 +130,29 @@ const TicketPurchaseModal: React.FC<TicketPurchaseModalProps> = ({
           {/* Purchase Button */}
           <button
             onClick={handlePurchase}
-            disabled={isLoading || maxQuantity === 0}
+            disabled={maxQuantity === 0}
             className="w-full bg-gradient-to-r from-purple-500 to-cyan-500 text-white py-3 rounded-lg font-bold text-lg hover:from-purple-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center space-x-2"
           >
-            {isLoading ? (
-              <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
-            ) : (
-              <>
-                <CreditCard className="w-5 h-5" />
-                <span>
-                  {maxQuantity === 0 ? 'Sold Out' : `Buy for £${totalPrice.toFixed(2)}`}
-                </span>
-              </>
-            )}
+            <CreditCard className="w-5 h-5" />
+            <span>
+              {maxQuantity === 0 ? 'Sold Out' : `Buy for £${totalPrice.toFixed(2)}`}
+            </span>
           </button>
 
           <p className="text-xs text-gray-500 text-center">
-            This is a demo - no real payment will be processed
+            Secure payment powered by Stripe
           </p>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      <TicketPaymentModal
+        event={event}
+        isOpen={showPayment}
+        onClose={() => setShowPayment(false)}
+        onPurchaseComplete={handlePaymentComplete}
+        quantity={quantity}
+      />
     </div>
   );
 };

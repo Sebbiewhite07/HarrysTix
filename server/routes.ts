@@ -400,6 +400,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Stripe payment intent for individual ticket purchases
+  app.post('/api/create-payment-intent', requireAuth, async (req, res) => {
+    try {
+      const { eventId, quantity } = req.body;
+      
+      if (!eventId || !quantity) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      
+      const user = await storage.getUserProfile(req.user.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Calculate price based on membership status
+      const unitPrice = user.isMember ? event.memberPrice : event.publicPrice;
+      const totalAmount = unitPrice * quantity;
+      
+      // Create payment intent
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(totalAmount * 100), // Convert to pence
+        currency: 'gbp',
+        metadata: {
+          eventId,
+          userId: user.id,
+          quantity: quantity.toString(),
+          unitPrice: unitPrice.toString()
+        }
+      });
+      
+      res.json({ 
+        client_secret: paymentIntent.client_secret,
+        amount: totalAmount
+      });
+    } catch (error) {
+      console.error('Create payment intent error:', error);
+      res.status(500).json({ error: 'Failed to create payment intent' });
+    }
+  });
+
   // Ticket routes
   app.get('/api/tickets', requireAuth, async (req, res) => {
     try {
@@ -435,20 +480,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         confirmationCode,
       });
 
-      // Send ticket confirmation email
-      try {
-        const user = await storage.getUserProfile(req.user.id);
-        const event = await storage.getEvent(eventId);
-        
-        if (user && event) {
-          const emailResult = await sendTicketConfirmationEmail(user, ticket, event);
-          if (emailResult.success) {
-            console.log(`✅ Ticket email sent to ${user.email} for ${ticket.confirmationCode}`);
+      // Send ticket confirmation email (but don't block the response)
+      setImmediate(async () => {
+        try {
+          const user = await storage.getUserProfile(req.user.id);
+          const event = await storage.getEvent(eventId);
+          
+          if (user && event) {
+            const emailResult = await sendTicketConfirmationEmail(user, ticket, event);
+            if (emailResult.success) {
+              console.log(`✅ Ticket email sent to ${user.email} for ${ticket.confirmationCode}`);
+            }
           }
+        } catch (emailError) {
+          console.error(`Error sending ticket email:`, emailError);
         }
-      } catch (emailError) {
-        console.error(`Error sending ticket email:`, emailError);
-      }
+      });
       
       res.json(ticket);
     } catch (error) {
