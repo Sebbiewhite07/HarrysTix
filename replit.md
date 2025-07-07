@@ -97,7 +97,7 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 - **Complete End-to-End Pre-Order Fulfillment System** (July 07, 2025): Implemented full specification compliance:
-  - Weekly pre-order restriction (1 event per week per member)
+  - Multiple pre-order support (users can pre-order unlimited events, one per event)
   - Stripe webhook handler for automatic ticket creation after payment success
   - Scheduled fulfillment system for Tuesday 7PM processing
   - Admin manual trigger for weekly pre-order processing
@@ -123,10 +123,10 @@ Preferred communication style: Simple, everyday language.
   - Successful ticket generation with confirmation codes
   - Real-time purchase processing with member pricing support
 
-- **Multiple Pre-Order System Implemented** (July 07, 2025): Enhanced pre-order functionality for maximum flexibility:
-  - Removed weekly pre-order restriction - users can now pre-order from multiple events
-  - Harry's Club section displays ALL available pre-order events in grid format
-  - Backend logic updated to allow one pre-order per event (instead of one per week)
+- **Unlimited Pre-Order System** (July 07, 2025): Removed all restrictions for maximum flexibility:
+  - Users can now pre-order unlimited events simultaneously
+  - Only restriction: one pre-order per specific event (prevents duplicates)
+  - Harry's Club section displays ALL available pre-order events
   - Individual pre-order status tracking for each event
   - Improved UI with event-specific pre-order buttons and status indicators
 
