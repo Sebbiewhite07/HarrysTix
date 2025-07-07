@@ -52,6 +52,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onEventA
           maxPerUser: parseInt(formData.maxPerUser),
           memberMaxPerUser: parseInt(formData.memberMaxPerUser),
           isLive: formData.status === 'live',
+          status: formData.status,
           imageUrl: formData.imageUrl || null,
           description: formData.description || null,
         }),
@@ -260,10 +261,11 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose, onEventA
               className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               <option value="draft">Draft</option>
+              <option value="pre-order">Pre-Order</option>
               <option value="live">Live</option>
             </select>
             <p className="text-sm text-gray-500 mt-1">
-              Draft events are hidden from users, Live events are available for purchase
+              Draft: Hidden • Pre-Order: Harry's Club members only • Live: Public sale
             </p>
           </div>
 

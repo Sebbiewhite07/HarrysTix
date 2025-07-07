@@ -30,7 +30,8 @@ export const events = pgTable("events", {
   maxPerUser: integer("max_per_user").default(4),
   memberMaxPerUser: integer("member_max_per_user").default(2),
   dropTime: timestamp("drop_time").defaultNow(), // Legacy field, not used anymore
-  isLive: boolean("is_live").default(false),
+  isLive: boolean("is_live").default(false), // Legacy field, kept for compatibility
+  status: text("status").notNull().default("draft"), // 'draft' | 'pre-order' | 'live'
   imageUrl: text("image_url"),
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),

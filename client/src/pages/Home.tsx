@@ -83,8 +83,9 @@ const Home: React.FC = () => {
 
   const activeWeeklyPreOrder = weeklyPreOrder || currentWeekPreOrder;
 
-  const liveEvents = events.filter(event => event.isLive && new Date() >= event.dropTime);
-  const upcomingEvents = events.filter(event => !event.isLive || new Date() < event.dropTime);
+  const liveEvents = events.filter(event => event.status === 'live');
+  const preOrderEvents = events.filter(event => event.status === 'pre-order');
+  const upcomingEvents = events.filter(event => event.status === 'draft');
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -97,7 +98,7 @@ const Home: React.FC = () => {
               <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 px-4 py-2 rounded-full border border-purple-500/30 pulse">
                 <Zap className="w-5 h-5 text-neon-gold" />
                 <span className="text-sm font-medium text-neon-purple">
-                  {loading ? 'Loading...' : `${events.length} events this week`}
+                  {loading ? 'Loading...' : `${liveEvents.length} events this week`}
                 </span>
               </div>
             </div>
@@ -203,7 +204,7 @@ const Home: React.FC = () => {
           ) : (
             <>
               {/* Harry's Club Pre-Order Section */}
-              {user?.isMember && upcomingEvents.length > 0 && (
+              {user?.isMember && preOrderEvents.length > 0 && (
                 <div className="mb-16 animate-slideIn">
                   <div className="bg-gradient-to-r from-purple-900/30 to-cyan-900/30 border border-purple-500/30 rounded-xl p-8">
                     <div className="flex items-center justify-between mb-6">
@@ -260,7 +261,7 @@ const Home: React.FC = () => {
                                 </div>
                               ) : (
                                 <button
-                                  onClick={() => handlePreOrder(upcomingEvents[0])}
+                                  onClick={() => handlePreOrder(preOrderEvents[0])}
                                   className="w-full mt-4 bg-gradient-to-r from-purple-500 to-cyan-500 text-white py-3 px-4 rounded-lg font-medium hover:from-purple-600 hover:to-cyan-600 transition-all"
                                 >
                                   Place Pre-Order

@@ -297,6 +297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         memberMaxPerUser: req.body.memberMaxPerUser,
         // dropTime field is now auto-generated with defaultNow()
         isLive: req.body.isLive, // Now determined by status field from frontend
+        status: req.body.status || 'draft',
         imageUrl: req.body.imageUrl || null,
         description: req.body.description || null,
       };
