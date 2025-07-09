@@ -261,19 +261,54 @@ POST /api/validate-coupon
 // Response
 {
   "valid": true,
-  "discount": {
-    "type": "percent_off",
-    "amount": 50,
-    "duration": "once"
-  }
+  "discount": "50% off",
+  "couponId": "STUDENT50"
 }
 ```
 
-### Coupon Application
-- Coupons are stored in user profile during application
-- Applied automatically during subscription creation
-- Cleared after successful application to prevent reuse
-- Supports percentage and fixed amount discounts
+### Coupon Application Process
+
+1. **During Membership Application** (`/api/membership-applications-with-payment`)
+   ```typescript
+   // Validate coupon against Stripe
+   const coupon = await stripe.coupons.retrieve(couponCode);
+   if (coupon && coupon.valid) {
+     // Store Stripe coupon ID in user profile
+     await storage.updateUserProfile(userId, {
+       appliedCouponCode: coupon.id
+     });
+   }
+   ```
+
+2. **During Subscription Creation** (`/api/create-subscription`)
+   ```typescript
+   // Verify coupon is still valid before applying
+   if (user.appliedCouponCode) {
+     const coupon = await stripe.coupons.retrieve(user.appliedCouponCode);
+     if (coupon && coupon.valid) {
+       sessionData.discounts = [{
+         coupon: user.appliedCouponCode  // Uses actual Stripe coupon ID
+       }];
+     }
+   }
+   ```
+
+3. **Metadata Tracking**
+   ```typescript
+   // Track coupon usage in checkout session metadata
+   metadata: {
+     userId: userId,
+     appliedCoupon: user.appliedCouponCode || 'none'
+   }
+   ```
+
+### Key Features
+- **Real-time validation**: Coupons validated against Stripe API, not local database
+- **Stripe coupon IDs**: System stores actual Stripe coupon IDs, not user-entered codes  
+- **Automatic application**: Discounts applied to `stripe.checkout.sessions.create()`
+- **Usage tracking**: Coupon metadata tracked in subscription records
+- **Error handling**: Graceful fallback if coupon becomes invalid
+- **One-time use**: Coupons cleared after application attempt
 
 ## Frontend Integration
 

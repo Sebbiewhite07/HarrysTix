@@ -1376,17 +1376,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success_url: `${req.protocol}://${req.get('host')}/membership/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${req.protocol}://${req.get('host')}/membership/cancelled`,
         metadata: {
-          userId: userId
+          userId: userId,
+          appliedCoupon: user.appliedCouponCode || 'none'
         }
       };
 
       // Apply coupon if user has one
       if (user.appliedCouponCode) {
-        sessionData.discounts = [{
-          coupon: user.appliedCouponCode
-        }];
+        try {
+          // Verify the coupon is still valid in Stripe before applying
+          const coupon = await stripe.coupons.retrieve(user.appliedCouponCode);
+          if (coupon && coupon.valid) {
+            sessionData.discounts = [{
+              coupon: user.appliedCouponCode
+            }];
+            console.log(`✅ Applied coupon ${user.appliedCouponCode} to subscription for user ${userId}`);
+          } else {
+            console.log(`❌ Coupon ${user.appliedCouponCode} is no longer valid for user ${userId}`);
+          }
+        } catch (stripeError) {
+          console.error(`❌ Failed to validate coupon ${user.appliedCouponCode}:`, stripeError);
+          // Continue without coupon if validation fails
+        }
         
-        // Clear the coupon code after applying it
+        // Clear the coupon code after attempting to apply it
         await storage.updateUserProfile(userId, {
           appliedCouponCode: null
         });
