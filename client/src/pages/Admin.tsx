@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Users, Calendar, Settings, BarChart3, Crown, Mail, Edit, Trash2, Eye, Upload, UserCheck, FileText, Package } from 'lucide-react';
+import { Plus, Users, Calendar, Settings, BarChart3, Crown, Mail, Edit, Trash2, Eye, Upload, UserCheck, FileText, Package, Tag } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 import { Event } from '../types';
@@ -11,6 +11,7 @@ import AdminAnalytics from './AdminAnalytics';
 import AdminSettings from './AdminSettings';
 import AdminPreOrders from './AdminPreOrders';
 import AdminPreOrderManagement from './AdminPreOrderManagement';
+import AdminCoupons from './AdminCoupons';
 
 const Admin: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -109,6 +110,7 @@ const Admin: React.FC = () => {
     { id: 'applications', label: 'Applications', icon: FileText },
     { id: 'pre-orders', label: 'Pre-Orders', icon: Package },
     { id: 'pre-order-management', label: 'Pre-Order Management', icon: Crown },
+    { id: 'coupons', label: 'Coupons', icon: Tag },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
@@ -150,6 +152,7 @@ const Admin: React.FC = () => {
         {activeTab === 'applications' && <AdminApplications />}
         {activeTab === 'pre-orders' && <AdminPreOrders />}
         {activeTab === 'pre-order-management' && <AdminPreOrderManagement />}
+        {activeTab === 'coupons' && <AdminCoupons />}
         {activeTab === 'analytics' && <AdminAnalytics />}
         {activeTab === 'settings' && <AdminSettings />}
 

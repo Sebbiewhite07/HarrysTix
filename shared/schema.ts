@@ -13,6 +13,7 @@ export const userProfiles = pgTable("user_profiles", {
   joinDate: timestamp("join_date").defaultNow(),
   isAdmin: boolean("is_admin").default(false),
   stripeCustomerId: text("stripe_customer_id"),
+  appliedCouponCode: text("applied_coupon_code"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

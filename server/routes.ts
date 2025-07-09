@@ -1075,13 +1075,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin coupon management endpoints
+  app.get("/api/admin/coupons", requireAuth, async (req, res) => {
+    try {
+      // Check if user is admin
+      const user = await storage.getUserProfile(req.user.id);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      // List all coupons from Stripe
+      const coupons = await stripe.coupons.list({ limit: 100 });
+      
+      res.json({ coupons: coupons.data });
+    } catch (error: any) {
+      console.error("Error fetching coupons:", error);
+      res.status(500).json({ error: "Failed to fetch coupons" });
+    }
+  });
+
+  app.post("/api/admin/coupons", requireAuth, async (req, res) => {
+    try {
+      // Check if user is admin
+      const user = await storage.getUserProfile(req.user.id);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      const couponData = req.body;
+      
+      // Create coupon in Stripe
+      const coupon = await stripe.coupons.create(couponData);
+      
+      res.json({ coupon });
+    } catch (error: any) {
+      console.error("Error creating coupon:", error);
+      res.status(500).json({ error: error.message || "Failed to create coupon" });
+    }
+  });
+
+  app.delete("/api/admin/coupons/:id", requireAuth, async (req, res) => {
+    try {
+      // Check if user is admin
+      const user = await storage.getUserProfile(req.user.id);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      
+      // Delete coupon in Stripe
+      await stripe.coupons.del(id);
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting coupon:", error);
+      res.status(500).json({ error: error.message || "Failed to delete coupon" });
+    }
+  });
+
+  // Coupon validation endpoint
+  app.post("/api/validate-coupon", async (req, res) => {
+    try {
+      const { couponCode } = req.body;
+      
+      if (!couponCode) {
+        return res.json({ valid: false });
+      }
+
+      // Validate coupon with Stripe
+      try {
+        const coupon = await stripe.coupons.retrieve(couponCode);
+        
+        if (coupon && coupon.valid) {
+          let discount = '';
+          if (coupon.percent_off) {
+            discount = `${coupon.percent_off}% off`;
+          } else if (coupon.amount_off) {
+            const amount = (coupon.amount_off / 100).toFixed(2);
+            discount = `£${amount} off`;
+          }
+          
+          // Check if it's a 100% off coupon
+          if (coupon.percent_off === 100) {
+            discount = 'Free for first month';
+          }
+          
+          res.json({ 
+            valid: true, 
+            discount,
+            couponId: coupon.id
+          });
+        } else {
+          res.json({ valid: false });
+        }
+      } catch (stripeError) {
+        console.log('Coupon not found in Stripe:', couponCode);
+        res.json({ valid: false });
+      }
+    } catch (error: any) {
+      console.error("Error validating coupon:", error);
+      res.json({ valid: false });
+    }
+  });
+
   // Membership application with payment details
   app.post("/api/membership-applications-with-payment", requireAuth, async (req, res) => {
     try {
-      const { university, reason, paymentMethodId } = req.body;
+      const { university, reason, paymentMethodId, couponCode } = req.body;
       
       if (!university || !reason || !paymentMethodId) {
         return res.status(400).json({ error: "University, reason, and payment method are required" });
+      }
+
+      // Validate coupon if provided
+      let validCoupon = null;
+      if (couponCode) {
+        try {
+          const coupon = await stripe.coupons.retrieve(couponCode);
+          if (coupon && coupon.valid) {
+            validCoupon = coupon;
+          }
+        } catch (stripeError) {
+          return res.status(400).json({ error: "Invalid coupon code" });
+        }
       }
 
       const user = await storage.getUserProfile(req.user.id);
@@ -1131,7 +1248,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'pending'
       });
 
-      res.json(application);
+      // Store coupon information for later use during subscription creation
+      if (validCoupon) {
+        await storage.updateUserProfile(req.user.id, {
+          appliedCouponCode: validCoupon.id
+        });
+      }
+
+      res.json({ 
+        ...application,
+        couponApplied: validCoupon ? true : false,
+        couponCode: validCoupon?.id
+      });
     } catch (error: any) {
       console.error("Error creating application with payment:", error);
       res.status(500).json({ error: "Failed to create application: " + error.message });
@@ -1236,7 +1364,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      const session = await stripe.checkout.sessions.create({
+      // Prepare session data
+      const sessionData: any = {
         mode: 'subscription',
         payment_method_types: ['card'],
         line_items: [{
@@ -1249,7 +1378,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: {
           userId: userId
         }
-      });
+      };
+
+      // Apply coupon if user has one
+      if (user.appliedCouponCode) {
+        sessionData.discounts = [{
+          coupon: user.appliedCouponCode
+        }];
+        
+        // Clear the coupon code after applying it
+        await storage.updateUserProfile(userId, {
+          appliedCouponCode: null
+        });
+      }
+
+      const session = await stripe.checkout.sessions.create(sessionData);
 
       res.json({ url: session.url });
     } catch (error: any) {

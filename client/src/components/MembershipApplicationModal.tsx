@@ -27,10 +27,14 @@ function ApplicationForm({ onClose, onApplicationComplete }: { onClose: () => vo
   
   const [formData, setFormData] = useState({
     university: '',
-    reason: ''
+    reason: '',
+    couponCode: ''
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [couponValid, setCouponValid] = useState<boolean | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState<string>('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   const createApplicationMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -43,7 +47,9 @@ function ApplicationForm({ onClose, onApplicationComplete }: { onClose: () => vo
       });
       onApplicationComplete();
       onClose();
-      setFormData({ university: '', reason: '' });
+      setFormData({ university: '', reason: '', couponCode: '' });
+      setCouponValid(null);
+      setCouponDiscount('');
       setIsSubmitting(false);
     },
     onError: (error: Error) => {
@@ -109,9 +115,52 @@ function ApplicationForm({ onClose, onApplicationComplete }: { onClose: () => vo
     // Submit application with payment method
     createApplicationMutation.mutate({
       ...formData,
-      paymentMethodId: paymentMethod.id
+      paymentMethodId: paymentMethod.id,
+      couponCode: formData.couponCode.trim() || undefined
     });
   };
+
+  // Validate coupon code
+  const validateCoupon = async (code: string) => {
+    if (!code.trim()) {
+      setCouponValid(null);
+      setCouponDiscount('');
+      return;
+    }
+
+    setValidatingCoupon(true);
+    try {
+      const response = await apiRequest('POST', '/api/validate-coupon', { couponCode: code });
+      const data = await response.json();
+      
+      if (data.valid) {
+        setCouponValid(true);
+        setCouponDiscount(data.discount);
+      } else {
+        setCouponValid(false);
+        setCouponDiscount('');
+      }
+    } catch (error) {
+      setCouponValid(false);
+      setCouponDiscount('');
+    }
+    setValidatingCoupon(false);
+  };
+
+  // Debounced coupon validation
+  const debouncedValidateCoupon = React.useCallback(
+    React.useMemo(
+      () => {
+        let timeoutId: NodeJS.Timeout;
+        return (code: string) => {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => validateCoupon(code), 500);
+        };
+      },
+      []
+    ),
+    []
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -133,8 +182,18 @@ function ApplicationForm({ onClose, onApplicationComplete }: { onClose: () => vo
           </div>
         </div>
         <div className="mt-3 p-2 bg-green-500/10 border border-green-500/20 rounded text-center">
-          <span className="text-green-400 font-semibold">£15/month</span>
-          <span className="text-gray-300 text-sm ml-2">Cancel anytime</span>
+          {couponValid && couponDiscount ? (
+            <div>
+              <span className="text-red-400 font-semibold line-through">£15/month</span>
+              <span className="text-green-400 font-semibold ml-2">{couponDiscount}</span>
+              <div className="text-gray-300 text-sm">Coupon applied! Cancel anytime</div>
+            </div>
+          ) : (
+            <div>
+              <span className="text-green-400 font-semibold">£15/month</span>
+              <span className="text-gray-300 text-sm ml-2">Cancel anytime</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -170,6 +229,34 @@ function ApplicationForm({ onClose, onApplicationComplete }: { onClose: () => vo
           />
         </div>
 
+        {/* Coupon Code */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Coupon Code (Optional)
+          </label>
+          <input
+            type="text"
+            value={formData.couponCode}
+            onChange={(e) => {
+              const code = e.target.value;
+              setFormData({ ...formData, couponCode: code });
+              debouncedValidateCoupon(code);
+            }}
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
+            placeholder="Enter discount code"
+            disabled={isSubmitting}
+          />
+          {validatingCoupon && (
+            <p className="text-xs text-gray-400 mt-1">Validating coupon...</p>
+          )}
+          {couponValid === true && (
+            <p className="text-xs text-green-400 mt-1">✓ Coupon applied: {couponDiscount}</p>
+          )}
+          {couponValid === false && formData.couponCode.trim() && (
+            <p className="text-xs text-red-400 mt-1">✗ Invalid coupon code</p>
+          )}
+        </div>
+
         {/* Payment Details */}
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -195,7 +282,10 @@ function ApplicationForm({ onClose, onApplicationComplete }: { onClose: () => vo
             />
           </div>
           <p className="text-xs text-gray-400 mt-1">
-            Your card will be charged £15/month if your application is approved
+            {couponValid && couponDiscount 
+              ? `Your card will be charged ${couponDiscount.includes('Free') ? 'nothing for the first period' : couponDiscount} if your application is approved`
+              : 'Your card will be charged £15/month if your application is approved'
+            }
           </p>
         </div>
       </div>

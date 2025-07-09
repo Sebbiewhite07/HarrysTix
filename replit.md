@@ -97,6 +97,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **Stripe Coupon System for Membership Signups** (July 09, 2025): Added comprehensive discount coupon functionality for promotional membership signups:
+  - Real-time coupon validation during membership application process with immediate feedback
+  - Applied coupon codes automatically integrated with Stripe subscription creation for seamless discount application
+  - Complete admin panel for coupon management with creation, listing, and deletion capabilities
+  - Support for percentage and fixed amount discounts with flexible duration options (one-time, repeating, forever)
+  - Coupon usage tracking and redemption limits with visual progress indicators
+  - Database schema extended to track applied coupon codes for audit purposes
+  - Enhanced membership application modal with coupon input field and discount preview
+  - Automatic coupon clearing after successful application to prevent reuse
+
 - **Complete Harry's Club Subscription Billing System** (July 09, 2025): Implemented full recurring subscription system with Stripe integration:
   - Monthly £15 subscription model for Harry's Club premium membership
   - Comprehensive memberships database table tracking subscription status, billing cycles, and Stripe IDs
