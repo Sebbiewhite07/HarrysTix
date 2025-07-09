@@ -68,7 +68,16 @@ Harry's Tix is a comprehensive event ticketing platform designed specifically fo
 - **Development Fallback**: Immediate ticket creation when webhooks unavailable
 - **Payment Status Tracking**: Real-time payment monitoring and error handling
 
-#### 2.6 Email Notification System
+#### 2.6 Harry's Club Subscription System
+- **Monthly Billing**: £15/month recurring subscription for premium membership
+- **Stripe Integration**: Complete subscription lifecycle management
+- **Payment Collection**: Secure payment method storage during application
+- **Automatic Billing**: Recurring payments with webhook synchronization
+- **Subscription Management**: Cancel, pause, and modify subscriptions
+- **Coupon System**: Promotional discount codes for membership signups
+- **Grace Period**: Maintained access during payment failures
+
+#### 2.7 Email Notification System
 - **Automated Emails**: Ticket confirmations, pre-order confirmations
 - **Professional Templates**: HTML email templates with branding
 - **Nodemailer Integration**: Reliable email delivery service
@@ -76,8 +85,9 @@ Harry's Tix is a comprehensive event ticketing platform designed specifically fo
   - Ticket confirmation with QR codes and event details
   - Pre-order placement confirmations
   - Membership application status updates
+  - Subscription billing notifications
 
-#### 2.7 Administrative Dashboard
+#### 2.8 Administrative Dashboard
 - **Event Management**: Create, edit, and manage all events
 - **User Management**: View and manage user accounts and memberships
 - **Membership Applications**: Review and approve/reject membership requests
@@ -85,11 +95,14 @@ Harry's Tix is a comprehensive event ticketing platform designed specifically fo
   - View all pre-orders with filtering capabilities
   - Bulk approval and processing workflows
   - Individual pre-order status management
+- **Coupon Management**: Create, edit, and delete promotional discount codes
+- **Subscription Oversight**: Monitor membership billing and subscription status
 - **Analytics Dashboard**: 
   - User growth metrics
   - Revenue tracking
   - Event performance analytics
   - Membership statistics
+  - Subscription and billing analytics
 
 ### 3. Technical Architecture
 
@@ -115,6 +128,7 @@ Harry's Tix is a comprehensive event ticketing platform designed specifically fo
 -- Core user management
 user_profiles: User account information and membership status
 membership_applications: Membership application tracking
+memberships: Active subscription tracking with Stripe integration
 invite_codes: Member invite system
 
 -- Event and ticketing
@@ -177,8 +191,9 @@ sessions: Secure session storage
 
 #### 5.1 Revenue Model
 - **Ticket Sales**: Commission or fixed fee per ticket
-- **Membership Fees**: Potential subscription model for Harry's Club
+- **Membership Subscriptions**: £15/month recurring billing for Harry's Club
 - **Premium Events**: Higher-value exclusive events for members
+- **Promotional Partnerships**: Coupon-based marketing campaigns
 
 #### 5.2 Operational Requirements
 - **Event Capacity Management**: Real-time inventory tracking
@@ -228,19 +243,26 @@ sessions: Secure session storage
 - Direct ticket purchase with Stripe integration
 - Pre-order system with approval workflow
 - Membership application and management
+- **Harry's Club subscription billing system** (£15/month recurring)
+- **Comprehensive coupon system** with real-time validation
+- **Complete Stripe webhook integration** for subscription lifecycle
 - Admin dashboard with analytics
+- **Coupon management interface** for promotional campaigns
 - Email notification system
 - Responsive neon-themed UI
 - Database schema and migrations
-- Webhook handling for payments
+- **Advanced payment method storage** during application process
 
 #### 8.2 Current Capabilities
 - **User Management**: Full registration, login, profile management
 - **Event System**: Complete event CRUD with dual pricing
-- **Payment Processing**: Both direct and pre-order payment flows
-- **Admin Tools**: Comprehensive administrative interface
+- **Payment Processing**: Direct purchase, pre-orders, and recurring subscriptions
+- **Subscription Management**: Monthly billing, cancellation, grace periods
+- **Coupon System**: Real-time validation, promotional discount application
+- **Admin Tools**: Comprehensive interface with subscription and coupon management
 - **Email System**: Automated confirmations and notifications
-- **Membership**: Application process with invite codes
+- **Membership**: Application process with Stripe payment collection
+- **Webhook Processing**: Complete Stripe event handling for subscriptions
 
 ### 9. Technical Specifications
 
@@ -282,6 +304,12 @@ STRIPE_SECRET_KEY=sk_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 VITE_STRIPE_PUBLIC_KEY=pk_...
 SESSION_SECRET=your-session-secret
+
+# Email Configuration (Optional - for production email delivery)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
 ```
 
 #### 10.3 Test Accounts
@@ -289,6 +317,35 @@ SESSION_SECRET=your-session-secret
 - **Member**: member@example.com / password123
 - **Regular User**: Create new account through registration
 
+### 11. Recent Major Updates
+
+#### 11.1 Harry's Club Subscription System (January 2025)
+- **Complete Stripe Integration**: Monthly £15 subscription billing
+- **Payment Collection**: Secure payment method storage during membership application
+- **Subscription Lifecycle**: Full webhook handling for renewals, failures, and cancellations
+- **Product Configuration**: Using Stripe Product ID `prod_SeM3JRMEY3tu9B`
+- **Billing Management**: Automatic membership benefits activation/deactivation
+
+#### 11.2 Advanced Coupon System (January 2025)
+- **Real-time Validation**: Coupon codes validated against Stripe API
+- **Promotional Discounts**: Support for percentage and fixed amount discounts
+- **Admin Management**: Complete coupon CRUD interface
+- **Stripe Integration**: Coupons properly applied to subscription checkout sessions
+- **Usage Tracking**: Metadata tracking for coupon redemption analytics
+
+#### 11.3 Enhanced Payment Architecture
+- **Dual Payment Systems**: Direct purchases and subscription billing
+- **Payment Method Security**: Stripe SetupIntent for secure storage
+- **Webhook Reliability**: Complete event handling for all payment scenarios
+- **Error Handling**: Graceful fallbacks for payment failures
+- **Audit Trail**: Comprehensive logging for all payment activities
+
+#### 11.4 Technical Documentation
+- **Comprehensive API Documentation**: Complete Stripe subscription workflow documentation
+- **Integration Guides**: Step-by-step setup instructions
+- **Testing Procedures**: Validation methods for payment systems
+- **Security Protocols**: Best practices for payment data handling
+
 ---
 
-**Harry's Tix** - Bringing London's best events to students with style and exclusivity.
+**Harry's Tix** - Bringing London's best events to students with style, exclusivity, and seamless subscription management.

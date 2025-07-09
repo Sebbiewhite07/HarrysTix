@@ -112,10 +112,7 @@ const Home: React.FC = () => {
               </span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Every ticket comes from Harry. The most exclusive student events in London, 
-              handpicked for the ultimate night out experience.
-            </p>
+            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">Exeter's Night Life Solution</p>
 
             {!user ? (
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -155,10 +152,8 @@ const Home: React.FC = () => {
           </div>
         </div>
       </section>
-
       {/* Divider */}
       <div className="divider"></div>
-
       {/* Stats Section */}
       <section className="py-12 bg-gray-900/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -195,7 +190,6 @@ const Home: React.FC = () => {
           </div>
         </div>
       </section>
-
       {/* Events Section */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -385,7 +379,6 @@ const Home: React.FC = () => {
           )}
         </div>
       </section>
-
       {/* CTA Section */}
       {!user?.isMember && (
         <section className="py-16 bg-neon-gradient-dark">
@@ -410,7 +403,6 @@ const Home: React.FC = () => {
           </div>
         </section>
       )}
-
       {/* Ticket Purchase Modal */}
       <TicketPurchaseModal
         event={selectedEvent}
@@ -418,14 +410,12 @@ const Home: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         onPurchaseComplete={handlePurchaseComplete}
       />
-
       <PreOrderPaymentModal
         event={selectedPreOrderEvent}
         isOpen={isPreOrderModalOpen}
         onClose={() => setIsPreOrderModalOpen(false)}
         onPreOrderComplete={handlePreOrderComplete}
       />
-      
       <MembershipApplicationModal
         isOpen={isMembershipModalOpen}
         onClose={() => setIsMembershipModalOpen(false)}
