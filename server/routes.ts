@@ -1369,7 +1369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mode: 'subscription',
         payment_method_types: ['card'],
         line_items: [{
-          price: priceId || 'price_1QGvpDAuY5bChKhPqVFJjQgn', // Default Harry's Club price
+          price: priceId || 'price_1Rj3LnAuY5cjaU0vyB5WSdlq', // Default Harry's Club price
           quantity: 1
         }],
         customer_email: user.email,
