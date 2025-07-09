@@ -1,0 +1,204 @@
+# Pre‑Order Ticket Management System – Product Requirements Document
+
+**Product**: Harry’s Tix – Admin Dashboard, Backend Services & Member‑Facing Portal
+**Version**: 2.0  (July 2025)
+**Authors**: Product & Platform Team
+**Status**: Draft for stakeholder sign‑off
+
+---
+
+## 1  Product Vision
+
+Automate and de‑risk the allocation of bulk‑uploaded event tickets to prepaid member orders, delivering tickets to students within minutes of upload while giving admins real‑time insight into stock, variant mismatches, and fulfilment health.
+
+**Success Metrics**
+
+| Metric                                            | Target                   | Rationale                          |
+| ------------------------------------------------- | ------------------------ | ---------------------------------- |
+| ⏱ Median time from CSV upload → ticket email sent | **< 2 min**              | Delight users; reduce support load |
+| 🔄 Auto‑assignment success rate                   | **≥ 95 %**               | Keep manual intervention rare      |
+| 📧 Delivery failure rate                          | **< 0.5 %**              | Maintain trust & inbox placement   |
+| 📊 Dashboard P95 load time                        | **< 1 s** at 10 k events | Admin productivity                 |
+
+---
+
+## 2  User Personas
+
+* **Club Member (Student, 18‑25)** – Buys 1 ticket per event, expects seamless delivery.
+* **Event Admin (Internal)** – Uploads ticket CSVs, monitors fulfilment, handles edge‑cases.
+* **Support Agent** – Resends tickets, audits assignment logs.
+
+---
+
+## 3  Key Concepts & Domain Model
+
+| Entity         | Description                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------- |
+| **PreOrder**   | Paid reservation for a ticket prior to upload. One per user per event; carries desired *Variant*. |
+| **Variant**    | Sub‑category inside an event (e.g. *Entry 9‑9 : 30 pm*). Optional.                                |
+| **Ticket**     | Final credential (Email + Password or QR). Uploaded in bulk CSV.                                  |
+| **Assignment** | Link table mapping a *Ticket* → *PreOrder* (1‑to‑1). Stores timestamps & actor.                   |
+
+---
+
+## 4  End‑to‑End Lifecycle
+
+1. **Pre‑Order Window & Payment Capture** – Members place orders; the platform **attempts to capture the full ticket amount off‑session every Tuesday at 19 : 00**.
+
+   * If **`payment_intent.succeeded`** is received, the pre‑order row moves to `confirmed`.
+   * If the card authorises but the capture fails (insufficient funds, card expired, etc.), the row stays `processing` and later becomes `failed`; **no ticket is ever allocated until payment succeeds.**
+2. **CSV Upload** – Admin drags `.csv`; system validates/ingests rows → `tickets.unassigned`.
+3. **Auto‑Assignment** – Real‑time worker matches tickets to the earliest matching `pre_orders.confirmed` using *event\_id* + *variant* (or *any variant* fallback if enabled). **The worker is triggered by two events:** (a) a new CSV ticket upload, or (b) a Stripe `payment_intent.succeeded` webhook when matching unassigned tickets already exist.
+4. **Fulfilment** – Email sent; dashboard & user portal update; audit log written.
+5. **Exceptions** – Unmatched tickets flagged; unmatched pre‑orders move to `waiting_for_stock`; support tools available.
+
+---
+
+## 5  Functional Requirements
+
+### 5.1  Member Pre‑Order UX
+
+* **Variant picker** (dropdown) appears when event has variants.
+* Enforce *1 pre‑order / event* rule via backend validation.
+* Post‑charge statuses shown:
+
+  * *Processing* – payment complete, awaiting ticket
+  * *Fulfilled* – ticket assigned, link to credentials
+  * *Waiting for Ticket* – no stock yet (tooltip explains)
+
+### 5.2  Admin CSV Upload
+
+1. **Upload Panel**
+
+   * Drag‑and‑drop or file chooser
+   * Realtime preview (first 20 rows)
+2. **Validation Rules**
+
+   * CSV headers exactly `Event,Variant,Email,Password`
+   * Duplicate `(Event,Email,Password)` rows rejected
+   * Row limit ≤ 10 k; size ≤ 5 MB
+3. **Confirmation Screen** shows:
+
+   * Total rows, rows valid, duplicates, malformed
+   * Variant coverage vs pre‑order demand
+4. **Commit** button triggers storage & assignment worker.
+
+### 5.3  Auto‑Assignment Engine
+
+```mermaid
+graph TD
+  A[Ticket uploaded] --> B{Matching Pre‑Order?}
+  B -- Yes --> C[Assign + email]
+  B -- No --> D[Mark ticket unmatched]
+```
+
+* FIFO by `pre_orders.confirmed_at` ensures fairness.
+* All actions wrapped in DB transaction; Redis lock on `(event_id,variant)` prevents race‑conditions when multiple CSVs land.
+* Fallback logic (toggle per event): if variant mismatch, allow *closest time* variant using Jaccard similarity on interval.
+
+### 5.4  Admin Dashboard 2.0
+
+* **Overview Cards** – orders, tickets, fulfilment %, unmatched counts.
+* **Variant Matrix** – heat‑map cells show *ordered vs. uploaded* by variant.
+* **Smart Filters** – status, user, email, variant.
+* **Bulk Actions** – resend email, mark ticket used, export CSV.
+
+### 5.5  Email Automation
+
+* Template stored in Postmark; variables: `event_name`, `variant`, `ticket_email`, `ticket_password`.
+* **Dispatch Condition** – Email is sent **only after** Stripe confirms the charge (`payment_intent.succeeded`) **and** a ticket has been successfully assigned to the pre‑order.
+* Retry up to 3× on transient SMTP errors.
+* Webhook updates `delivery_status` in `assignments` table for observability.
+
+---
+
+## 6  Non‑Functional Requirements
+
+| Category         | Requirement                                                                            |
+| ---------------- | -------------------------------------------------------------------------------------- |
+| **Performance**  | Bulk upload of 10 k tickets processed in **< 60 s**                                    |
+| **Scalability**  | Support 100 concurrent uploads; assignment worker horizontally scalable (Redis queue). |
+| **Security**     | Ticket passwords stored AES‑256; access limited to assigned user and support role.     |
+| **Auditability** | All state transitions recorded in `assignment_logs` table with actor & IP.             |
+| **Compliance**   | GDPR: Right‑to‑erasure removes *Ticket*, *Assignment* rows and masks email in logs.    |
+
+---
+
+## 7  Data Model Updates (Drizzle ORM)
+
+```ts
+export const tickets = pgTable('tickets', {
+  id: uuid('id').primaryKey(),
+  eventId: uuid('event_id').references(() => events.id),
+  variant: text('variant'),
+  email: text('email'),
+  password: text('password').secret(),
+  status: text('status', { enum: ['unassigned','assigned','unmatched','used']}).default('unassigned'),
+  assignedUserId: uuid('assigned_user_id').references(() => users.id),
+  assignedAt: timestamp('assigned_at'),
+  createdAt: timestamp('created_at').defaultNow()
+});
+
+export const assignments = pgTable('ticket_assignments', {
+  id: uuid('id').primaryKey(),
+  ticketId: uuid('ticket_id').references(() => tickets.id),
+  preOrderId: uuid('pre_order_id').references(() => preOrders.id),
+  status: text('status', { enum: ['sent','delivery_failed']}).default('sent'),
+  createdAt: timestamp('created_at').defaultNow()
+});
+```
+
+---
+
+## 8  API Surface (REST / tRPC)
+
+| Method | Path                                      | Description                 |
+| ------ | ----------------------------------------- | --------------------------- |
+| `POST` | `/api/admin/tickets/upload`               | Receive CSV → job queue     |
+| `GET`  | `/api/admin/tickets/assignments?eventId=` | Paginated list              |
+| `POST` | `/api/admin/tickets/:id/resend`           | Resend email                |
+| `POST` | `/api/admin/events/:id/reconcile`         | Re‑run assignment algorithm |
+| `GET`  | `/api/me/pre-orders`                      | Member dashboard data       |
+
+---
+
+## 9  Observability & Alerting
+
+* **Metrics** via Prom‑client:
+
+  * `ticket_assignment_duration_seconds{status}` histogram
+  * `unmatched_tickets_total` gauge (per event)
+* **Dashboards** in Grafana; alert when unmatched > (5 % of pre‑orders) 15 min after upload.
+
+---
+
+## 10  Risks & Mitigations
+
+| Risk                | Impact             | Mitigation                                                              |
+| ------------------- | ------------------ | ----------------------------------------------------------------------- |
+| Variant typo in CSV | Tickets unmatched  | Add fuzzy‑match preview + admin correction UI                           |
+| Email spam filters  | Users miss tickets | Use branded sending domain + SPF/DKIM, monitor Postmark bounce webhooks |
+| Oversold event      | Refund workload    | Future *overbooking feature* with prioritised waitlist + auto‑refund    |
+
+---
+
+## 11  Phased Build Roadmap
+
+| Phase                       | Window                 | Objective                                                     | Major Deliverables                                                                                                                                                                                                               |
+| --------------------------- | ---------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1 – Core MVP**            | **Now → 12 Aug 2025**  | Ship automated pre‑order fulfilment for initial event volume. | • Ticket & assignment schema<br>• CSV upload UI with validation<br>• Assignment worker (upload‑ & webhook‑triggered)<br>• Stripe capture cron + idempotent webhooks<br>• Basic metrics & structured logs<br>• Admin dashboard v1 |
+| **2 – Scale & Reliability** | **Sep → Oct 2025**     | Handle 10× traffic with zero‑touch Tuesday processing.        | • Cron‑based capture + assignment<br>• Horizontal queue scaling (BullMQ + Redis)<br>• Grafana dashboards & PagerDuty alerts<br>• Role‑based support tools (resend, refund)<br>• Accessibility / WCAG audit fixes                 |
+| **3 – Premium & Advanced**  | **Nov 2025 → Q1 2026** | Unlock growth & premium workflows.                            | • Manual drag‑drop reassignment UI<br>• Waitlist auto‑fill & overbooking refunds<br>• Variant clustering / “closest time” matcher<br>• Mobile push notifications for ticket delivery<br>• Public API for partner integrations    |
+
+---
+
+## 12  Future Enhancements
+
+* Manual drag‑drop reassignment tool
+* Waitlist auto‑fill & refund workflows
+* Mobile push notifications for ticket delivery
+* Variant clustering by time window (e.g. ±15 min)
+
+---
+
+> *“Get the right ticket to the right student, every time, in under two minutes.”* – Product Motto
