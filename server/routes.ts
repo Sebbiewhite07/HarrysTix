@@ -1075,6 +1075,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Membership application with payment details
+  app.post("/api/membership-applications-with-payment", requireAuth, async (req, res) => {
+    try {
+      const { university, reason, paymentMethodId } = req.body;
+      
+      if (!university || !reason || !paymentMethodId) {
+        return res.status(400).json({ error: "University, reason, and payment method are required" });
+      }
+
+      const user = await storage.getUserProfile(req.user.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Create Stripe customer if they don't have one
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: user.name,
+          payment_method: paymentMethodId,
+          invoice_settings: {
+            default_payment_method: paymentMethodId,
+          },
+        });
+        customerId = customer.id;
+
+        // Update user with Stripe customer ID
+        await storage.updateUserProfile(req.user.id, {
+          stripeCustomerId: customerId
+        });
+      } else {
+        // Attach payment method to existing customer
+        await stripe.paymentMethods.attach(paymentMethodId, {
+          customer: customerId,
+        });
+
+        // Set as default payment method
+        await stripe.customers.update(customerId, {
+          invoice_settings: {
+            default_payment_method: paymentMethodId,
+          },
+        });
+      }
+
+      // Create membership application
+      const application = await storage.createMembershipApplication({
+        id: randomUUID(),
+        userId: req.user.id,
+        email: user.email,
+        name: user.name,
+        university: university.trim(),
+        reason: reason.trim(),
+        status: 'pending'
+      });
+
+      res.json(application);
+    } catch (error: any) {
+      console.error("Error creating application with payment:", error);
+      res.status(500).json({ error: "Failed to create application: " + error.message });
+    }
+  });
+
   // Admin pre-order management
   app.get("/api/admin/pre-orders", requireAuth, requireAdmin, async (req, res) => {
     try {
