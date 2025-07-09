@@ -97,6 +97,19 @@ export const preOrders = pgTable("pre_orders", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Memberships table for recurring subscription billing
+export const memberships = pgTable("memberships", {
+  id: uuid("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => userProfiles.id, { onDelete: "cascade" }),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  status: text("status").$type<'active' | 'past_due' | 'canceled' | 'incomplete' | 'trialing'>().notNull(),
+  currentPeriodEnd: timestamp("current_period_end"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
 // Schema definitions for forms and validation
 export const insertUserProfileSchema = createInsertSchema(userProfiles).pick({
   email: true,
@@ -154,6 +167,15 @@ export const insertPreOrderSchema = createInsertSchema(preOrders).pick({
   stripeCustomerId: true,
 });
 
+export const insertMembershipSchema = createInsertSchema(memberships).pick({
+  userId: true,
+  stripeCustomerId: true,
+  stripeSubscriptionId: true,
+  status: true,
+  currentPeriodEnd: true,
+  cancelAtPeriodEnd: true,
+});
+
 // Type exports
 export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
 export type UserProfile = typeof userProfiles.$inferSelect;
@@ -172,6 +194,9 @@ export type InviteCode = typeof inviteCodes.$inferSelect;
 
 export type InsertPreOrder = z.infer<typeof insertPreOrderSchema>;
 export type PreOrder = typeof preOrders.$inferSelect;
+
+export type InsertMembership = z.infer<typeof insertMembershipSchema>;
+export type Membership = typeof memberships.$inferSelect;
 
 // Legacy exports for compatibility during migration
 export const users = userProfiles;

@@ -8,6 +8,9 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Admin from './pages/Admin';
+import Membership from './pages/Membership';
+import MembershipSuccess from './pages/MembershipSuccess';
+import MembershipCancelled from './pages/MembershipCancelled';
 
 function App() {
   return (
@@ -20,6 +23,9 @@ function App() {
             <Route path="/signup" component={Signup} />
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/admin" component={Admin} />
+            <Route path="/membership" component={Membership} />
+            <Route path="/membership/success" component={MembershipSuccess} />
+            <Route path="/membership/cancelled" component={MembershipCancelled} />
           </Layout>
         </Router>
       </AuthProvider>

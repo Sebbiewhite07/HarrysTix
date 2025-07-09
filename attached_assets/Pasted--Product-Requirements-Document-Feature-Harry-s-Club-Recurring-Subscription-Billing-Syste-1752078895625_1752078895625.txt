@@ -1,0 +1,130 @@
+# Product Requirements Document
+
+**Feature**: Harry’s Club – Recurring Subscription Billing
+
+**System**: Custom Website (Stripe-integrated)
+
+**Product ID**: `prod_SeJRFQJ6rooxEI`
+
+**Goal**: Enable secure, monthly recurring billing for members, allowing them to access ticket pre-orders and discounts.
+
+---
+
+## 🎯 Objectives
+
+- Use Stripe to handle monthly recurring payments (£15/month)
+- Ensure users only get access to member-only tickets if their subscription is active
+- Prevent Stripe from sending upcoming charge notifications
+- Allow user signup, cancellation, and dashboard status viewing
+- Handle declined cards and reactivation flows
+- Store and sync subscription status with backend
+
+---
+
+## 🔧 Functional Requirements
+
+### 1. **Stripe Product Configuration**
+
+**Product ID**: `prod_SeJRFQJ6rooxEI`
+
+- Create a **monthly recurring Price** attached to this product (if not already created):
+    - **Amount**: £15
+    - **Interval**: Monthly
+    - **Currency**: GBP
+
+> This will produce a Price ID like price_1NZxyzABC123.
+> 
+
+---
+
+### 2. **Frontend User Flow**
+
+### A. **Join Harry’s Club**
+
+- **Button**: “Join for £15/month – Early Access + Member Deals”
+- When clicked:
+    - Send API request to backend to create a **Stripe Checkout Session**
+    - Use **mode: `subscription`**
+
+```
+// Example (backend)
+stripe.checkout.sessions.create({
+  mode: 'subscription',
+  payment_method_types: ['card'],
+  line_items: [{
+    price: 'price_1NZxyzABC123',
+    quantity: 1
+  }],
+  customer_email: user.email,
+  success_url: 'https://harrys-tix.com/membership/success?session_id={CHECKOUT_SESSION_ID}',
+  cancel_url: 'https://harrys-tix.com/membership/cancelled'
+});
+
+```
+
+- On redirect to success page:
+    - Confirm via `checkout.session.completed` webhook before granting access
+
+---
+
+### 3. **Backend Integration**
+
+### A. **Webhooks to Handle**
+
+Set up your webhook endpoint (e.g., `/api/stripe/webhook`) to listen to:
+
+| Event | Action |
+| --- | --- |
+| `checkout.session.completed` | Save `customer_id`, `subscription_id`, mark membership active |
+| `invoice.paid` | Confirm monthly billing success, update period end |
+| `invoice.payment_failed` | Flag user as "payment failed" |
+| `customer.subscription.updated` | Handle pause/resume/cancel |
+| `customer.subscription.deleted` | End access to pre-orders |
+
+> 🔐 Secure with your Stripe webhook signing secret (whsec_...)
+> 
+
+---
+
+### B. **Database Schema**
+
+```sql
+Table: memberships
+-------------------
+id
+user_id (FK)
+stripe_customer_id
+stripe_subscription_id
+status (active, past_due, canceled)
+current_period_end (timestamp)
+created_at
+updated_at
+
+```
+
+---
+
+### 4. **Access Control Logic**
+
+Only allow access to member tickets if:
+
+```
+user.membership.status === "active" && now < current_period_end
+
+```
+
+Block pre-order buttons for users with:
+
+- No subscription
+- Cancelled status
+- Expired period
+
+---
+
+### 5. Add to **Member Dashboard**
+
+Minimal interface showing:
+
+- Subscription status (Active / Payment Failed / Cancelled)
+- Next billing date
+- “Cancel Membership” button (sets subscription to cancel at period end)

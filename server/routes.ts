@@ -1154,6 +1154,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Harry's Club Subscription Management Routes
+
+  // Create Stripe checkout session for subscription
+  app.post("/api/create-subscription", requireAuth, async (req, res) => {
+    try {
+      const { priceId } = req.body;
+      const userId = req.user.id;
+      
+      // Check if user already has an active subscription
+      const existingMembership = await storage.getMembership(userId);
+      if (existingMembership && existingMembership.status === 'active') {
+        return res.status(400).json({ error: "User already has an active subscription" });
+      }
+
+      const user = await storage.getUserProfile(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        payment_method_types: ['card'],
+        line_items: [{
+          price: priceId || 'price_1QGvpDAuY5bChKhPqVFJjQgn', // Default Harry's Club price
+          quantity: 1
+        }],
+        customer_email: user.email,
+        success_url: `${req.protocol}://${req.get('host')}/membership/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.protocol}://${req.get('host')}/membership/cancelled`,
+        metadata: {
+          userId: userId
+        }
+      });
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error('Subscription creation error:', error);
+      res.status(500).json({ error: "Failed to create subscription" });
+    }
+  });
+
+  // Get user's membership status
+  app.get("/api/membership", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const membership = await storage.getMembership(userId);
+      
+      if (!membership) {
+        return res.json({ hasSubscription: false });
+      }
+
+      // Check if membership is active and not expired
+      const isActive = membership.status === 'active' && 
+                     (!membership.currentPeriodEnd || new Date() < membership.currentPeriodEnd);
+
+      res.json({
+        hasSubscription: true,
+        membership: {
+          ...membership,
+          isActive
+        }
+      });
+    } catch (error: any) {
+      console.error('Get membership error:', error);
+      res.status(500).json({ error: "Failed to get membership status" });
+    }
+  });
+
+  // Cancel subscription
+  app.post("/api/cancel-subscription", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const membership = await storage.getMembership(userId);
+      
+      if (!membership || !membership.stripeSubscriptionId) {
+        return res.status(404).json({ error: "No active subscription found" });
+      }
+
+      // Cancel subscription at period end
+      await stripe.subscriptions.update(membership.stripeSubscriptionId, {
+        cancel_at_period_end: true
+      });
+
+      // Update membership record
+      await storage.updateMembership(membership.id, {
+        cancelAtPeriodEnd: true
+      });
+
+      res.json({ success: true, message: "Subscription will be cancelled at the end of the current period" });
+    } catch (error: any) {
+      console.error('Cancel subscription error:', error);
+      res.status(500).json({ error: "Failed to cancel subscription" });
+    }
+  });
+
   // Stripe webhook endpoint
   app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -1168,6 +1263,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       switch (event.type) {
+        // Subscription Events for Harry's Club
+        case 'checkout.session.completed':
+          const session = event.data.object;
+          if (session.mode === 'subscription') {
+            const userId = session.metadata?.userId;
+            const customerId = session.customer;
+            const subscriptionId = session.subscription;
+            
+            if (userId && customerId && subscriptionId) {
+              // Create membership record
+              const membershipId = randomUUID();
+              await storage.createMembership({
+                id: membershipId,
+                userId,
+                stripeCustomerId: customerId as string,
+                stripeSubscriptionId: subscriptionId as string,
+                status: 'active',
+                currentPeriodEnd: null, // Will be updated by invoice.paid event
+                cancelAtPeriodEnd: false
+              });
+
+              // Update user profile to grant membership
+              await storage.updateUserProfile(userId, {
+                isMember: true,
+                stripeCustomerId: customerId as string
+              });
+
+              console.log(`✅ Subscription created for user ${userId}: ${subscriptionId}`);
+            }
+          }
+          break;
+
+        case 'invoice.paid':
+          const invoice = event.data.object;
+          if (invoice.subscription) {
+            const membership = await storage.getUserMembershipByStripeId(invoice.subscription as string);
+            if (membership) {
+              const periodEnd = new Date(invoice.period_end * 1000);
+              await storage.updateMembership(membership.id, {
+                status: 'active',
+                currentPeriodEnd: periodEnd
+              });
+              console.log(`✅ Subscription renewed for user ${membership.userId} until ${periodEnd}`);
+            }
+          }
+          break;
+
+        case 'invoice.payment_failed':
+          const failedInvoice = event.data.object;
+          if (failedInvoice.subscription) {
+            const membership = await storage.getUserMembershipByStripeId(failedInvoice.subscription as string);
+            if (membership) {
+              await storage.updateMembership(membership.id, {
+                status: 'past_due'
+              });
+              console.log(`❌ Payment failed for subscription ${failedInvoice.subscription}`);
+            }
+          }
+          break;
+
+        case 'customer.subscription.updated':
+          const subscription = event.data.object;
+          const membership = await storage.getUserMembershipByStripeId(subscription.id);
+          if (membership) {
+            await storage.updateMembership(membership.id, {
+              status: subscription.status as any,
+              cancelAtPeriodEnd: subscription.cancel_at_period_end,
+              currentPeriodEnd: new Date(subscription.current_period_end * 1000)
+            });
+            console.log(`📝 Subscription updated: ${subscription.id} - ${subscription.status}`);
+          }
+          break;
+
+        case 'customer.subscription.deleted':
+          const deletedSubscription = event.data.object;
+          const deletedMembership = await storage.getUserMembershipByStripeId(deletedSubscription.id);
+          if (deletedMembership) {
+            await storage.updateMembership(deletedMembership.id, {
+              status: 'canceled'
+            });
+            
+            // Remove membership from user profile
+            await storage.updateUserProfile(deletedMembership.userId, {
+              isMember: false,
+              membershipExpiry: new Date() // Set to current date to expire immediately
+            });
+            
+            console.log(`🚫 Subscription cancelled: ${deletedSubscription.id}`);
+          }
+          break;
+
+        // Pre-order Payment Events
         case 'payment_intent.succeeded':
           const paymentIntent = event.data.object;
           const preOrderId = paymentIntent.metadata.preOrderId;

@@ -97,6 +97,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **Complete Harry's Club Subscription Billing System** (July 09, 2025): Implemented full recurring subscription system with Stripe integration:
+  - Monthly £15 subscription model for Harry's Club premium membership
+  - Comprehensive memberships database table tracking subscription status, billing cycles, and Stripe IDs
+  - Complete subscription management API endpoints for creation, cancellation, and status tracking
+  - Stripe webhook handler supporting all subscription lifecycle events (created, renewed, failed, cancelled)
+  - Frontend membership management pages with subscription controls and status displays
+  - Success/cancellation flow pages for seamless user experience
+  - Extended storage layer with full membership CRUD operations and Stripe integration
+  - Automatic membership benefits activation and revocation based on subscription status
+
 - **Comprehensive README and PRD Documentation** (July 08, 2025): Created complete Product Requirements Document covering:
   - Full system architecture and technical specifications
   - Detailed feature documentation for all implemented components

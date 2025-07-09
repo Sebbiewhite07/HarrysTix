@@ -5,18 +5,21 @@ import {
   membershipApplications, 
   inviteCodes,
   preOrders,
+  memberships,
   type UserProfile, 
   type Event, 
   type Ticket, 
   type MembershipApplication, 
   type InviteCode,
   type PreOrder,
+  type Membership,
   type InsertUserProfile, 
   type InsertEvent, 
   type InsertTicket, 
   type InsertMembershipApplication, 
   type InsertInviteCode,
   type InsertPreOrder,
+  type InsertMembership,
   type User,
   type InsertUser 
 } from "@shared/schema";
@@ -59,6 +62,12 @@ export interface IStorage {
   createPreOrder(preOrder: InsertPreOrder & { id: string }): Promise<PreOrder>;
   updatePreOrderStatus(id: string, status: string, additionalFields?: Partial<PreOrder>): Promise<PreOrder | undefined>;
   cancelPreOrder(id: string, userId: string): Promise<PreOrder | undefined>;
+  
+  // Membership methods
+  getMembership(userId: string): Promise<Membership | undefined>;
+  createMembership(membership: InsertMembership & { id: string }): Promise<Membership>;
+  updateMembership(id: string, updates: Partial<InsertMembership>): Promise<Membership | undefined>;
+  getUserMembershipByStripeId(stripeSubscriptionId: string): Promise<Membership | undefined>;
   
   // Legacy methods for backward compatibility
   getUser(id: number): Promise<User | undefined>;
@@ -253,6 +262,30 @@ export class DatabaseStorage implements IStorage {
       .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })
       .where(and(eq(preOrders.id, id), eq(preOrders.userId, userId)))
       .returning();
+    return result[0];
+  }
+
+  // Membership methods
+  async getMembership(userId: string): Promise<Membership | undefined> {
+    const result = await db.select().from(memberships).where(eq(memberships.userId, userId));
+    return result[0];
+  }
+
+  async createMembership(membership: InsertMembership & { id: string }): Promise<Membership> {
+    const result = await db.insert(memberships).values(membership).returning();
+    return result[0];
+  }
+
+  async updateMembership(id: string, updates: Partial<InsertMembership>): Promise<Membership | undefined> {
+    const result = await db.update(memberships)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(memberships.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async getUserMembershipByStripeId(stripeSubscriptionId: string): Promise<Membership | undefined> {
+    const result = await db.select().from(memberships).where(eq(memberships.stripeSubscriptionId, stripeSubscriptionId));
     return result[0];
   }
 
